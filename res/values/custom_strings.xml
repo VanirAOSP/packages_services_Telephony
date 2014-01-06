@@ -61,5 +61,4 @@
         <item>@string/summary_mute_ringer</item>
         <item>@string/summary_dismiss_call</item>
     </string-array>
-
 </resources>
