@@ -62,4 +62,9 @@
         <item>@string/summary_dismiss_call</item>
     </string-array>
 
+    <!-- Integrated phone directory -->
+    <string name="enable_suggestions_title">Enable suggestions</string>
+    <string name="enable_suggestions_summary">Suggest phone number of nearby places when searching in the dialer</string>
+    <string name="enable_reverse_lookup_title">Enable reverse lookup</string>
+    <string name="enable_reverse_lookup_summary">Look up names on incoming calls when number is not in phone book</string>
 </resources>
