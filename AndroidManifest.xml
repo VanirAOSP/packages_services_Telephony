@@ -563,6 +563,21 @@
         <!-- service to dump telephony information -->
         <service android:name="HfaService" android:exported="false"/>
 
+        <!-- TeloRadio Service -->
+        <service android:name=".TeloRadioService"
+        android:persistent="true"
+        android:process="com.android.phone"
+                android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.MAIN" />
+                <action android:name="com.android.internal.telephony.REQUEST_NETWORK_MODE" />
+                <action android:name="com.android.internal.telephony.MODIFY_NETWORK_MODE" />
+                <action android:name="com.android.phone.TeloRadioService" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </service>
+
     </application>
 
     <permission android:name="com.android.phone.CHANGE_NETWORK_MODE"
