@@ -23,11 +23,13 @@ import android.os.SystemProperties;
 import android.util.Log;
 
 import com.android.internal.telephony.CallManager;
+import com.android.internal.telephony.MSimConstants;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.util.BlacklistUtils;
 import com.android.phone.CallModeler.CallResult;
 import com.android.phone.NotificationMgr.StatusBarHelper;
 import com.android.services.telephony.common.Call;
+import com.android.services.telephony.common.CallDetails;
 import com.android.services.telephony.common.ICallCommandService;
 
 /**
@@ -62,10 +64,50 @@ class CallCommandService extends ICallCommandService.Stub {
         try {
             CallResult result = mCallModeler.getCallWithId(callId);
             if (result != null) {
-                PhoneUtils.answerCall(result.getConnection().getCall());
+                answerCallWithCallType(callId, CallDetails.CALL_TYPE_UNKNOWN);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error during answerCall().", e);
+        }
+    }
+
+    public void answerCallWithCallType(int callId, int callType) {
+        Log.v(TAG, "answerCallWithCallType" + callId + " calltype" + callType);
+        try {
+            CallResult result = mCallModeler.getCallWithId(callId);
+            if (result != null && callType != CallDetails.CALL_TYPE_UNKNOWN) {
+                result.mCall.getCallDetails().setCallType(callType);
+            }
+            PhoneUtils.answerCall(result.getConnection().getCall(), callType);
+        } catch (Exception e) {
+            Log.e(TAG, "Error during answerCall().", e);
+        }
+    }
+
+    public void modifyCallInitiate(int callId, int callType) {
+        Log.v(TAG, "modifyCallInitiate: callId=" + callId + "callType=" + callType);
+        try {
+            CallResult result = mCallModeler.getCallWithId(callId);
+            if (result != null) {
+                PhoneUtils.modifyCallInitiate(result.getConnection(), callType, null);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error during modifyCallInitiate().", e);
+        }
+    }
+
+    public void modifyCallConfirm(boolean responseType, int callId) {
+        Log.v(TAG, "modifyCallConfirm" + "responseType " + responseType + "callId" + callId);
+        CallDetails callModify;
+        try {
+            CallResult result = mCallModeler.getCallWithId(callId);
+            if (result != null) {
+                callModify = result.mCall.getCallModifyDetails();
+                PhoneUtils.modifyCallConfirm(responseType, result.getConnection(),
+                        callModify.getExtras());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error during modifyCallInitiate().", e);
         }
     }
 
@@ -77,9 +119,11 @@ class CallCommandService extends ICallCommandService.Stub {
         try {
             int callId = Call.INVALID_CALL_ID;
             String phoneNumber = "";
+            int subscription = 0;
             if (call != null) {
                 callId = call.getCallId();
                 phoneNumber = call.getNumber();
+                subscription = call.getSubscription();
             }
             CallResult result = mCallModeler.getCallWithId(callId);
 
@@ -91,7 +135,8 @@ class CallCommandService extends ICallCommandService.Stub {
             }
 
             if (rejectWithMessage && !phoneNumber.isEmpty()) {
-                RejectWithTextMessageManager.rejectCallWithMessage(phoneNumber, message);
+                RejectWithTextMessageManager.rejectCallWithMessage(phoneNumber, message,
+                        subscription);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error during rejectCall().", e);
@@ -257,6 +302,16 @@ class CallCommandService extends ICallCommandService.Stub {
         }
     }
 
+    public void hangupWithReason(int callId, String userUri, boolean mpty, int failCause,
+            String errorInfo) {
+        try {
+            Log.d(TAG, "hangupWithReason");
+            PhoneUtils.hangupWithReason(callId, userUri, mpty, failCause, errorInfo);
+        } catch (Exception e) {
+            Log.e(TAG, "Error hangupWithReason", e);
+        }
+    }
+
     @Override
     public void setSystemBarNavigationEnabled(boolean enable) {
         try {
@@ -284,6 +339,51 @@ class CallCommandService extends ICallCommandService.Stub {
             PhoneUtils.hangup(result.getConnection().getCall());
         } catch (Exception e) {
             Log.e(TAG, "Error during blacklistAndHangup().", e);
+        }
+    }
+
+    @Override
+    public void setActiveSubscription(int subscriptionId) {
+        try {
+            // Active subscription got changed from UI, call setAudioMode
+            // which informs LCH state to RIL and updates audio state of subs.
+            PhoneUtils.setActiveSubscription(subscriptionId);
+            mCallManager.deactivateLchState(subscriptionId);
+            mCallManager.setAudioMode();
+        } catch (Exception e) {
+            Log.e(TAG, "Error during setActiveSubscription().", e);
+        }
+    }
+
+    @Override
+    public int getActiveSubscription() {
+        int subscriptionId = MSimConstants.INVALID_SUBSCRIPTION;
+
+        try {
+            subscriptionId = PhoneUtils.getActiveSubscription();
+        } catch (Exception e) {
+            Log.e(TAG, "Error during getActiveSubscription().", e);
+        }
+        return subscriptionId;
+    }
+
+    /**
+     * This method sets the active subscription but
+     *  - does not call setAudioMode(), so the other active subscription's
+     *    current LCH state will not be changed.
+     *  - mute the other active subscription.
+     * This method is called when the call on current active subscription is
+     * ended by the remote party.
+     *
+     * @param subscription newly active subscription.
+     */
+    @Override
+    public void setActiveSubRetainLch(int subscriptionId) {
+        try {
+            PhoneUtils.setActiveSubscription(subscriptionId);
+            PhoneUtils.setMute(true);
+        } catch (Exception e) {
+            Log.e(TAG, "Error during setActiveSubRetainLch.", e);
         }
     }
 }

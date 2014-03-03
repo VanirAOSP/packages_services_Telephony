@@ -312,7 +312,6 @@ public class OtaUtils {
      */
     public static void startInteractiveOtasp(Context context) {
         if (DBG) log("startInteractiveOtasp()...");
-        PhoneGlobals app = PhoneGlobals.getInstance();
 
         // There are two ways to start OTASP on voice-capable devices:
         //
@@ -649,6 +648,7 @@ public class OtaUtils {
             // Send a success or failure indication back to our caller.
             updateNonInteractiveOtaSuccessFailure();
         }
+        cleanOtaScreen(true);
     }
 
     private void otaShowHome() {
