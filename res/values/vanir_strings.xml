@@ -20,4 +20,8 @@
     <string name="speaker_proximity">Speaker Proximity</string>
     <string name="speaker_proximity_summary">Use proximity during call to activate the speaker</string>
 
+    <!-- Call UI in background -->
+    <string name="bg_incall">Incoming call in background</string>
+    <string name="bg_incall_summary">Keep incoming call UI in background when screen is on, show notification and play ringtone only</string>
+
 </resources>
