@@ -236,11 +236,11 @@
             android:targetClass="com.android.phone.CdmaCallOptions"/>
     </PreferenceScreen>
 
-  <CheckBoxPreference
-      android:key="bg_incall_screen"
-      android:title="@string/bg_incall"
-      android:persistent="false"
-      android:defaultValue="false"
-      android:summary="@string/bg_incall_summary"/>>
+    <CheckBoxPreference
+        android:key="button_non_intrusive_incall"
+        android:title="@string/non_intrusive_incall_title"
+        android:summary="@string/non_intrusive_incall_summary"
+        android:persistent="false"
+        android:defaultValue="true" />
 
 </PreferenceScreen>
