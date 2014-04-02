@@ -337,7 +337,7 @@
              non-voice-capable tablets and regular phone devices. -->
         <activity android:name="MobileNetworkSettings"
             android:label="@string/settings_label"
-            android:theme="@style/Theme.Settings">
+            android:theme="@style/Theme.DialogWhenLarge">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.MAIN" />
@@ -359,7 +359,7 @@
         <activity android:name="NetworkSetting"
                 android:label="@string/networks"
                 android:configChanges="orientation|screenSize|keyboardHidden"
-                android:theme="@android:style/Theme.Holo.DialogWhenLarge">
+                android:theme="@style/Theme.DialogWhenLarge">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="android.settings.NETWORK_OPERATOR_SETTINGS" />
