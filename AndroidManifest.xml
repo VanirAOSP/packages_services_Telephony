@@ -365,7 +365,8 @@
                 android:label="@string/networks"
                 android:icon="@drawable/ic_launcher_phone_settings"
                 android:configChanges="orientation|screenSize|keyboardHidden"
-                android:theme="@style/Theme.DialogWhenLarge">
+                android:theme="@style/Theme.DialogWhenLarge"
+                android:parentActivityName="MobileNetworkSettings">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="android.settings.NETWORK_OPERATOR_SETTINGS" />
