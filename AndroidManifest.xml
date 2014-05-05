@@ -341,6 +341,7 @@
              non-voice-capable tablets and regular phone devices. -->
         <activity android:name="MobileNetworkSettings"
             android:label="@string/settings_label"
+            android:icon="@drawable/ic_launcher_phone_settings"
             android:theme="@style/Theme.DialogWhenLarge">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -362,6 +363,7 @@
 
         <activity android:name="NetworkSetting"
                 android:label="@string/networks"
+                android:icon="@drawable/ic_launcher_phone_settings"
                 android:configChanges="orientation|screenSize|keyboardHidden"
                 android:theme="@style/Theme.DialogWhenLarge">
             <intent-filter>
