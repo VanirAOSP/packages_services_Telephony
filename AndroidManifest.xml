@@ -580,6 +580,7 @@
         <!-- "Call settings" UI, used only on voice-capable phone devices. -->
         <activity android:name="CallFeaturesSetting"
                 android:label="@string/call_settings"
+                android:icon="@mipmap/ic_launcher_phone"
                 android:configChanges="orientation|screenSize|keyboardHidden"
                 android:theme="@style/SettingsLight">
             <intent-filter>
