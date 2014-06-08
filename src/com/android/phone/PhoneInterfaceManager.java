@@ -1272,4 +1272,8 @@ public class PhoneInterfaceManager extends ITelephony.Stub implements CallModele
         // no-op
     }
 
+    @Override
+    public void onSuppServiceFailed(int service) {
+        // no-op
+    }
 }
