@@ -71,7 +71,12 @@ import com.android.internal.telephony.cdma.TtyIntent;
 import com.android.internal.telephony.util.BlacklistUtils;
 import com.android.phone.sip.SipSharedPreferences;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Top level "Call settings" UI; see res/xml/call_feature_setting.xml
@@ -1711,24 +1716,6 @@ public class CallFeaturesSetting extends PreferenceActivity
         mNonIntrusiveInCall = (CheckBoxPreference) findPreference(BUTTON_NON_INTRUSIVE_INCALL_KEY);
         mNonIntrusiveInCall.setChecked(Settings.System.getInt(getContentResolver(),
                 Settings.System.NON_INTRUSIVE_INCALL, 1) == 0 ? false : true);
-
-        if (PhoneUtils.isPackageInstalled(this, getString(R.string.cyngn_reverse_lookup_provider_package))) {
-            List<String> reverseLookupProviders = new LinkedList<String>(Arrays.asList(getResources().getStringArray(R.array.reverse_lookup_provider_names)));
-            List<String> reverseLookupProvidersValues = new LinkedList<String>(Arrays.asList(getResources().getStringArray(R.array.reverse_lookup_providers)));
-
-            reverseLookupProviders.add(getString(R.string.cyngn_reverse_lookup_provider_name));
-            reverseLookupProvidersValues.add(getString(R.string.cyngn_reverse_lookup_provider_value));
-
-            String[] reverseLookupArray = new String[reverseLookupProviders.size()];
-            String[] reverseLookupNameArray = new String[reverseLookupProvidersValues.size()];
-            reverseLookupArray = reverseLookupProviders.toArray(reverseLookupArray);
-            reverseLookupNameArray = reverseLookupProvidersValues.toArray(reverseLookupNameArray);
-            mChooseReverseLookupProvider.setEntries(reverseLookupArray);
-            mChooseReverseLookupProvider.setEntryValues(reverseLookupNameArray);
-        } else {
-            mChooseReverseLookupProvider.setEntries(getResources().getStringArray(R.array.reverse_lookup_provider_names));
-            mChooseReverseLookupProvider.setEntryValues(getResources().getStringArray(R.array.reverse_lookup_providers));
-        }
 
         mCallEndSound = (CheckBoxPreference) findPreference(BUTTON_CALL_END_SOUND_KEY);
         mCallEndSound.setChecked(Settings.System.getInt(getContentResolver(),
