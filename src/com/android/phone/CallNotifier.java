@@ -37,7 +37,6 @@ import com.android.internal.telephony.cdma.CdmaInformationRecords.CdmaSignalInfo
 import com.android.internal.telephony.cdma.SignalToneUtil;
 import com.android.internal.telephony.gsm.SuppServiceNotification;
 import com.android.internal.telephony.util.BlacklistUtils;
-import com.android.internal.util.cm.QuietHoursUtils;
 import com.android.phone.CallFeaturesSetting;
 
 import android.app.ActivityManagerNative;
@@ -491,9 +490,6 @@ public class CallNotifier extends Handler
         // InCallScreen) from the showIncomingCall() method, which runs
         // when the caller-id query completes or times out.
 
-        // Finally, do the Quiet Hours ringer handling
-        checkInQuietHours(c);
-
         if (VDBG) log("- onNewRingingConnection() done.");
     }
 
@@ -526,37 +522,6 @@ public class CallNotifier extends Handler
             return true;
         }
         return false;
-    }
-
-    protected void checkInQuietHours(Connection c) {
-        final String number = c.getAddress();
-
-        if (QuietHoursUtils.inQuietHours(mApplication, Settings.System.QUIET_HOURS_RINGER)) {
-            if (DBG) log("Incoming call from " + number + " received during Quiet Hours.");
-            // Determine what type of Quiet Hours we are in and act accordingly
-            int muteType = Settings.System.getInt(mApplication.getContentResolver(),
-                    Settings.System.QUIET_HOURS_RINGER,
-                    Settings.System.QUIET_HOURS_RINGER_ALLOW_ALL);
-
-            switch (muteType) {
-                case Settings.System.QUIET_HOURS_RINGER_CONTACTS_ONLY:
-                    if (!isContact(number, false)) {
-                        if (DBG) log("Muting ringer, caller not in contact list");
-                        silenceRinger();
-                    }
-                    break;
-                case Settings.System.QUIET_HOURS_RINGER_FAVORITES_ONLY:
-                    if (!isContact(number, true)) {
-                        if (DBG) log("Muting ringer, caller is not favorite");
-                        silenceRinger();
-                    }
-                    break;
-                case Settings.System.QUIET_HOURS_RINGER_DISABLED:
-                    if (DBG) log("Muting ringer");
-                    silenceRinger();
-                    break;
-            }
-        }
     }
 
     /**

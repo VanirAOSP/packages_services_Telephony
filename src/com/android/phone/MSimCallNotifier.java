@@ -316,9 +316,6 @@ public class MSimCallNotifier extends CallNotifier {
         // InCallScreen) from the showIncomingCall() method, which runs
         // when the caller-id query completes or times out.
 
-        // Finally, do the Quiet Hours ringer handling
-        checkInQuietHours(c);
-
         if (VDBG) log("- onNewRingingConnection() done.");
     }
 

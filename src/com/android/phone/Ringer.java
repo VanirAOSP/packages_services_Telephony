@@ -36,7 +36,6 @@ import android.provider.Settings;
 import android.util.Log;
 
 import com.android.internal.telephony.Phone;
-import com.android.internal.util.cm.QuietHoursUtils;
 
 /**
  * Ringer manager for the Phone app.
@@ -160,6 +159,14 @@ public class Ringer {
         if (DBG) log("ring()...");
 
         synchronized (this) {
+            if (Settings.System.getInt(mContext.getContentResolver(),
+                    Settings.System.QUIET_HOURS_RINGER, 0) == 2) {
+                // Quiet hours ringer setting is enabled,
+                // Skip all calculations and return without ringing
+                // or vibrating in any way.
+                return;
+            }
+
             try {
                 if (mBluetoothManager.showBluetoothIndication()) {
                     mPowerManager.setAttentionLight(true, 0x000000ff);
@@ -238,14 +245,11 @@ public class Ringer {
 
     boolean shouldVibrate() {
         int ringerMode = mAudioManager.getRingerMode();
-        boolean shouldVibrate = false;
         if (CallFeaturesSetting.getVibrateWhenRinging(mContext)) {
-            shouldVibrate = ringerMode != AudioManager.RINGER_MODE_SILENT;
+            return ringerMode != AudioManager.RINGER_MODE_SILENT;
         } else {
-            shouldVibrate = ringerMode == AudioManager.RINGER_MODE_VIBRATE;
+            return ringerMode == AudioManager.RINGER_MODE_VIBRATE;
         }
-        return shouldVibrate
-                && !QuietHoursUtils.inQuietHours(mContext, Settings.System.QUIET_HOURS_STILL);
     }
 
     /**
