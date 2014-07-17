@@ -368,8 +368,9 @@
                 android:label="@string/networks"
                 android:icon="@drawable/ic_launcher_phone_settings"
                 android:configChanges="orientation|screenSize|keyboardHidden"
-                android:theme="@style/Theme.DialogWhenLarge"
+                android:theme="@style/Theme.Settings"
                 android:parentActivityName="MobileNetworkSettings">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="android.settings.NETWORK_OPERATOR_SETTINGS" />
@@ -429,7 +430,7 @@
 
         <activity android:name="CellBroadcastSms"
             android:label="@string/cell_broadcast_sms"
-            android:theme="@android:style/Theme.Holo.DialogWhenLarge">
+            android:theme="@style/Theme.Settings">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
@@ -510,7 +511,7 @@
         <!-- data roaming setting -->
         <activity android:name="RoamingSetting"
                 android:label="@string/roaming"
-                android:theme="@android:style/Theme.Holo.DialogWhenLarge">
+                android:theme="@style/Theme.Settings">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
@@ -571,7 +572,7 @@
         <activity android:name="SelectSubscription"
             android:label="@string/callind_multi_sim"
             android:configChanges="orientation|keyboardHidden"
-            android:theme="@android:style/Theme.Holo.DialogWhenLarge">
+            android:theme="@style/Theme.Settings">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.MAIN" />
@@ -662,7 +663,7 @@
                 android:uiOptions="splitActionBarWhenNarrow">
         </activity>
         <activity android:name=".ims.ImsEditor"
-                android:theme="@android:style/Theme.Holo.DialogWhenLarge"
+                android:theme="@style/Theme.Settings"
                 android:configChanges="orientation|screenSize|keyboardHidden"
                 android:uiOptions="splitActionBarWhenNarrow">
         </activity>
