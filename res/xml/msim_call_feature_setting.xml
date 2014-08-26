@@ -42,53 +42,54 @@
 
     </PreferenceScreen>
 
-  <PreferenceCategory android:key="button_misc_category_key"
-        android:title="@string/other_settings"
-        android:persistent="false" />
+    <PreferenceCategory
+            android:key="button_misc_category_key"
+            android:title="@string/other_settings"
+            android:persistent="false" />
 
-  <CheckBoxPreference
-      android:key="button_play_dtmf_tone"
-      android:title="@string/dtmf_tone_enable_title"
-      android:persistent="false"
-      android:defaultValue="true" />
-
-  <CheckBoxPreference
-      android:key="button_proximity_key"
-      android:title="@string/proximity_mode_title"
-      android:persistent="false"
-      android:summary="@string/proximity_on_summary" />
+        <CheckBoxPreference
+                android:key="button_play_dtmf_tone"
+                android:title="@string/dtmf_tone_enable_title"
+                android:persistent="false"
+                android:defaultValue="true" />
 
     <CheckBoxPreference
-        android:key="button_auto_retry_key"
-        android:title="@string/auto_retry_mode_title"
-        android:persistent="false"
-        android:summary="@string/auto_retry_mode_summary"/>
+            android:key="button_proximity_key"
+            android:title="@string/proximity_mode_title"
+            android:persistent="false"
+            android:summary="@string/proximity_on_summary" />
+
+    <CheckBoxPreference
+            android:key="button_auto_retry_key"
+            android:title="@string/auto_retry_mode_title"
+            android:persistent="false"
+            android:summary="@string/auto_retry_mode_summary"/>
 
     <ListPreference
-        android:key="button_tty_mode_key"
-        android:title="@string/tty_mode_option_title"
-        android:summary="@string/tty_mode_option_summary"
-        android:persistent="false"
-        android:entries="@array/tty_mode_entries"
-        android:entryValues="@array/tty_mode_values"/>
+            android:key="button_tty_mode_key"
+            android:title="@string/tty_mode_option_title"
+            android:summary="@string/tty_mode_option_summary"
+            android:persistent="false"
+            android:entries="@array/tty_mode_entries"
+            android:entryValues="@array/tty_mode_values"/>
 
      <CheckBoxPreference
-        android:key="button_hac_key"
-        android:title="@string/hac_mode_title"
-        android:persistent="true"
-        android:summary="@string/hac_mode_summary"/>
+            android:key="button_hac_key"
+            android:title="@string/hac_mode_title"
+            android:persistent="true"
+            android:summary="@string/hac_mode_summary"/>
 
     <ListPreference
-        android:key="button_dtmf_settings"
-        android:title="@string/dtmf_tones_title"
-        android:summary="@string/dtmf_tones_summary"
-        android:entries="@array/dtmf_tone_entries"
-        android:entryValues="@array/dtmf_tone_values"/>
+            android:key="button_dtmf_settings"
+            android:title="@string/dtmf_tones_title"
+            android:summary="@string/dtmf_tones_summary"
+            android:entries="@array/dtmf_tone_entries"
+            android:entryValues="@array/dtmf_tone_values"/>
 
     <PreferenceScreen
-        android:key="button_xdivert"
-        android:title="@string/xdivert_title"
-        android:summary="@string/xdivert_summary"
-        android:persistent="false">
+            android:key="button_xdivert"
+            android:title="@string/xdivert_title"
+            android:summary="@string/xdivert_summary"
+            android:persistent="false">
     </PreferenceScreen>
 </PreferenceScreen>
