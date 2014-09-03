@@ -20,6 +20,7 @@
 package com.android.phone;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.app.KeyguardManager;
 import android.app.PendingIntent;
 import android.app.ProgressDialog;
@@ -32,6 +33,8 @@ import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.ContextWrapper;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnDismissListener;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -83,7 +86,10 @@ import org.codeaurora.ims.IImsService;
 import org.codeaurora.ims.IImsServiceListener;
 
 import static com.android.internal.telephony.MSimConstants.DEFAULT_SUBSCRIPTION;
+import org.codeaurora.ims.csvt.CallForwardInfoP;
 import org.codeaurora.ims.csvt.ICsvtService;
+import org.codeaurora.ims.csvt.ICsvtServiceListener;
+import java.util.List;
 
 /**
  * Global state for the telephony subsystem when running in the primary
@@ -215,6 +221,7 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
     // the foreground.
     protected Activity mPUKEntryActivity;
     private ProgressDialog mPUKEntryProgressDialog;
+    private Dialog mUSSDResponseDialog;
 
     private boolean mIsSimPinEnabled;
     private String mCachedSimPin;
@@ -717,6 +724,19 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
         }
     };
 
+    public boolean isCsvtActive(){
+        boolean result = false;
+        if (mCsvtService != null){
+            try{
+                result = mCsvtService.isActive();
+                Log.d(LOG_TAG, "mCsvtService.isActive = " + result);
+            } catch (RemoteException e) {
+                Log.e(LOG_TAG, Log.getStackTraceString(new Throwable()));
+            }
+        }
+        return result;
+    }
+
     public void createCsvtService() {
         if (PhoneUtils.isCallOnCsvtEnabled()) {
             try {
@@ -736,12 +756,41 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
         public void onServiceConnected(ComponentName name, IBinder service) {
             mCsvtService = ICsvtService.Stub.asInterface(service);
             Log.d(LOG_TAG,"Csvt Service Connected: " + mCsvtService);
+            if (mCsvtService != null) {
+                try{
+                    mCsvtService.registerListener(mCsvtServiceListener);
+                    Log.d(LOG_TAG, "Csvt Service register ICsvtServiceListener");
+                } catch (RemoteException e) {
+                    Log.e(LOG_TAG, Log.getStackTraceString(new Throwable()));
+                }
+            }
         }
 
         public void onServiceDisconnected(ComponentName arg0) {
             Log.w(LOG_TAG,"Csvt Service onServiceDisconnected");
             mCsvtService = null;
         }
+    };
+
+    private static ICsvtServiceListener mCsvtServiceListener = new ICsvtServiceListener.Stub() {
+        public void onPhoneStateChanged(int state) {
+            Log.d(LOG_TAG, "onPhoneStateChanged");
+            Intent intent = new Intent("intent.action.CSVT_PRECISE_CALL_STATE_CHANGED");
+            PhoneGlobals.getInstance().sendBroadcast(intent);
+        }
+
+        public void onCallStatus(int result) {
+        }
+
+        public void onCallWaiting(boolean enabled) {
+        }
+
+        public void onCallForwardingOptions(List<CallForwardInfoP> fi) {
+        }
+
+        public void onRingbackTone(boolean playTone) {
+        }
+
     };
 
 
@@ -943,6 +992,19 @@ public class PhoneGlobals extends ContextWrapper implements WiredHeadsetListener
 
     ProgressDialog getPUKEntryProgressDialog() {
         return mPUKEntryProgressDialog;
+    }
+
+    void setUSSDResponseDialog(Dialog USSDResponseDialog) {
+        mUSSDResponseDialog = USSDResponseDialog;
+        mUSSDResponseDialog.setOnDismissListener(new OnDismissListener() {
+            public void onDismiss(DialogInterface dialog) {
+                mUSSDResponseDialog = null;
+            }
+        });
+    }
+
+    Dialog getUSSDResponseDialog() {
+        return mUSSDResponseDialog;
     }
 
     /**

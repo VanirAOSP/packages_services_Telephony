@@ -45,6 +45,8 @@ import android.view.MenuItem;
 import com.android.internal.telephony.cdma.TtyIntent;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
+import com.android.phone.Constants;
+import com.android.phone.R;
 import com.android.phone.sip.SipSharedPreferences;
 import com.codeaurora.telephony.msim.SubscriptionManager;
 
@@ -81,6 +83,7 @@ public class MSimCallFeaturesSetting extends PreferenceActivity
     private static final String BUTTON_PLAY_DTMF_TONE  = "button_play_dtmf_tone";
     private static final String BUTTON_DTMF_KEY        = "button_dtmf_settings";
     private static final String BUTTON_RETRY_KEY       = "button_auto_retry_key";
+    private static final String BUTTON_PROXIMITY_KEY   = "button_proximity_key";
     private static final String BUTTON_TTY_KEY         = "button_tty_mode_key";
     private static final String BUTTON_HAC_KEY         = "button_hac_key";
     private static final String BUTTON_SELECT_SUB_KEY  = "button_call_independent_serv";
@@ -90,6 +93,7 @@ public class MSimCallFeaturesSetting extends PreferenceActivity
             "sip_call_options_key";
     private static final String BUTTON_SIP_CALL_OPTIONS_WIFI_ONLY =
             "sip_call_options_wifi_only_key";
+    private static final String BUTTON_EMERGENCY_CALL_KEY = "emergency_call_list";
     private static final String SIP_SETTINGS_CATEGORY_KEY =
             "sip_settings_category_key";
 
@@ -110,12 +114,14 @@ public class MSimCallFeaturesSetting extends PreferenceActivity
     private CheckBoxPreference mPlayDtmfTone;
     private CheckBoxPreference mButtonAutoRetry;
     private CheckBoxPreference mButtonHAC;
+    private CheckBoxPreference mButtonProximity;
     private ListPreference mButtonDTMF;
     private ListPreference mButtonTTY;
     private ListPreference mButtonSipCallOptions;
     private SipSharedPreferences mSipSharedPreferences;
 
     private PreferenceScreen mButtonXDivert;
+    private PreferenceScreen mEmergencyCall;
     private int mNumPhones;
     private SubscriptionManager mSubManager;
 
@@ -127,6 +133,10 @@ public class MSimCallFeaturesSetting extends PreferenceActivity
     @Override
     public boolean onPreferenceTreeClick(PreferenceScreen preferenceScreen, Preference preference) {
         if (preference == mButtonDTMF) {
+            return true;
+        } else if (preference == mPlayDtmfTone) {
+            Settings.System.putInt(getContentResolver(), Settings.System.DTMF_TONE_WHEN_DIALING,
+                    mPlayDtmfTone.isChecked() ? 1 : 0);
             return true;
         } else if (preference == mButtonTTY) {
             return true;
@@ -171,6 +181,12 @@ public class MSimCallFeaturesSetting extends PreferenceActivity
                     Settings.System.DTMF_TONE_TYPE_WHEN_DIALING, index);
         } else if (preference == mButtonTTY) {
             handleTTYChange(preference, objValue);
+        } else if (preference == mButtonProximity) {
+            boolean checked = (Boolean) objValue;
+            Settings.System.putInt(mPhone.getContext().getContentResolver(),
+                    Constants.SETTINGS_PROXIMITY_SENSOR, checked ? 1 : 0);
+            mButtonProximity.setSummary(checked ? R.string.proximity_on_summary
+                    : R.string.proximity_off_summary);
         } else if (preference == mButtonSipCallOptions) {
             handleSipCallOptionsChange(objValue);
         }
@@ -203,8 +219,27 @@ public class MSimCallFeaturesSetting extends PreferenceActivity
         mButtonHAC = (CheckBoxPreference) findPreference(BUTTON_HAC_KEY);
         mButtonTTY = (ListPreference) findPreference(BUTTON_TTY_KEY);
         mButtonXDivert = (PreferenceScreen) findPreference(BUTTON_XDIVERT_KEY);
+        mButtonProximity = (CheckBoxPreference) findPreference(BUTTON_PROXIMITY_KEY);
 
         final ContentResolver contentResolver = getContentResolver();
+
+        mEmergencyCall = (PreferenceScreen) findPreference(BUTTON_EMERGENCY_CALL_KEY);
+        if (!getResources().getBoolean(R.bool.show_emergency_call_list)) {
+            prefSet.removePreference(mEmergencyCall);
+        }
+
+        if (!getResources().getBoolean(R.bool.config_show_xdivert)) {
+            prefSet.removePreference(mButtonXDivert);
+        }
+
+        if (mButtonProximity != null) {
+            if (getResources().getBoolean(R.bool.config_proximity_enable)) {
+                mButtonProximity.setOnPreferenceChangeListener(this);
+            } else {
+                prefSet.removePreference(mButtonProximity);
+                mButtonProximity = null;
+            }
+        }
 
         if (mPlayDtmfTone != null) {
             mPlayDtmfTone.setChecked(Settings.System.getInt(contentResolver,
@@ -355,7 +390,7 @@ public class MSimCallFeaturesSetting extends PreferenceActivity
 
     private void createSipCallSettings() {
         // Add Internet call settings.
-        if (PhoneUtils.isVoipSupported()) {
+        if (PhoneUtils.isVoipSupported(this)) {
             mSipManager = SipManager.newInstance(this);
             mSipSharedPreferences = new SipSharedPreferences(this);
             addPreferencesFromResource(R.xml.sip_settings_category);
@@ -429,6 +464,14 @@ public class MSimCallFeaturesSetting extends PreferenceActivity
 
         if (mButtonXDivert != null) {
             if (!isAllSubActive()) mButtonXDivert.setEnabled(false);
+        }
+
+        if (mButtonProximity != null) {
+            boolean checked = Settings.System.getInt(getContentResolver(),
+                    Constants.SETTINGS_PROXIMITY_SENSOR, 1) == 1;
+            mButtonProximity.setChecked(checked);
+            mButtonProximity.setSummary(checked ? R.string.proximity_on_summary
+                    : R.string.proximity_off_summary);
         }
     }
 
@@ -513,7 +556,7 @@ public class MSimCallFeaturesSetting extends PreferenceActivity
      * This is useful for implementing "HomeAsUp" capability for second-level Settings.
      */
     public static void goUpToTopLevelSetting(Activity activity) {
-        Intent intent = new Intent(activity, CallFeaturesSetting.class);
+        Intent intent = new Intent(activity, MSimCallFeaturesSetting.class);
         intent.setAction(Intent.ACTION_MAIN);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         activity.startActivity(intent);

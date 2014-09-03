@@ -40,6 +40,7 @@ import android.preference.EditTextPreference;
 import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.telephony.PhoneNumberUtils;
+import android.telephony.MSimTelephonyManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -93,7 +94,6 @@ public class RespondViaSmsManager {
     private static final String KEY_CANNED_RESPONSE_PREF_3 = "canned_response_pref_3";
     private static final String KEY_CANNED_RESPONSE_PREF_4 = "canned_response_pref_4";
     private static final String KEY_PREFERRED_PACKAGE = "preferred_package_pref";
-    private static final String KEY_INSTANT_TEXT_DEFAULT_COMPONENT = "instant_text_def_component";
 
     /**
      * Settings activity under "Call settings" to let you manage the
@@ -152,6 +152,13 @@ public class RespondViaSmsManager {
             if (VDBG) log("  preference = '" + preference + "'");
             if (VDBG) log("  newValue = '" + newValue + "'");
 
+            if (TextUtils.isEmpty((String) newValue)) {
+                // If the newValue is empty, we prompt a toast and do not save the newValue.
+                Toast.makeText(getApplicationContext(),
+                        R.string.respond_via_sms_cannot_be_empty, Toast.LENGTH_SHORT).show();
+                return false;
+            }
+
             EditTextPreference pref = (EditTextPreference) preference;
 
             // Copy the new text over to the title, just like in onCreate().
@@ -169,27 +176,17 @@ public class RespondViaSmsManager {
             switch (itemId) {
                 case android.R.id.home:
                     // See ActionBar#setDisplayHomeAsUpEnabled()
-                    CallFeaturesSetting.goUpToTopLevelSetting(this);
-                    return true;
-                case R.id.respond_via_message_reset:
-                    // Reset the preferences settings
-                    SharedPreferences prefs = getSharedPreferences(
-                            SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
-                    SharedPreferences.Editor editor = prefs.edit();
-                    editor.remove(KEY_INSTANT_TEXT_DEFAULT_COMPONENT);
-                    editor.apply();
-
+                    if (MSimTelephonyManager.getDefault().isMultiSimEnabled()){
+                        MSimCallFeaturesSubSetting.goUpToTopLevelSetting(this);
+                    } else {
+                        CallFeaturesSetting.goUpToTopLevelSetting(this);
+                    }
                     return true;
                 default:
             }
             return super.onOptionsItemSelected(item);
         }
 
-        @Override
-        public boolean onCreateOptionsMenu(Menu menu) {
-            getMenuInflater().inflate(R.menu.respond_via_message_settings_menu, menu);
-            return super.onCreateOptionsMenu(menu);
-        }
     }
 
     private static void log(String msg) {

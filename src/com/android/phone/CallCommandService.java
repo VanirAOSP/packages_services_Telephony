@@ -78,7 +78,11 @@ class CallCommandService extends ICallCommandService.Stub {
             if (result != null && callType != CallDetails.CALL_TYPE_UNKNOWN) {
                 result.mCall.getCallDetails().setCallType(callType);
             }
-            PhoneUtils.answerCall(result.getConnection().getCall(), callType);
+            if (mCallManager.hasActiveFgCall() && mCallManager.hasActiveBgCall()) {
+                PhoneUtils.answerAndEndActive(mCallManager, result.getConnection().getCall());
+            } else {
+                PhoneUtils.answerCall(result.getConnection().getCall(), callType);
+            }
         } catch (Exception e) {
             Log.e(TAG, "Error during answerCall().", e);
         }
@@ -237,6 +241,24 @@ class CallCommandService extends ICallCommandService.Stub {
             PhoneUtils.setMute(onOff);
         } catch (Exception e) {
             Log.e(TAG, "Error during mute().", e);
+        }
+    }
+
+    @Override
+    public void muteInternal(boolean onOff) {
+        try {
+            PhoneUtils.muteOnNewCall(onOff);
+        } catch (Exception e) {
+            Log.e(TAG, "Error during mute().", e);
+        }
+    }
+
+    @Override
+    public void updateMuteState(int sub, boolean muted) {
+        try {
+            PhoneUtils.updateMuteState(sub, muted);
+        } catch (Exception e) {
+            Log.e(TAG, "Error during updateMuteState().", e);
         }
     }
 

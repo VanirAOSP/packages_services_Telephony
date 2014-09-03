@@ -1341,6 +1341,7 @@ public class PhoneUtils {
                 sUssdMsg.insert(0, text);
                 sUssdDialog.setMessage(sUssdMsg.toString());
                 sUssdDialog.show();
+                app.setUSSDResponseDialog(sUssdDialog);
             } else {
                 if (DBG) log("USSD code has requested user input. Constructing input dialog.");
 
@@ -2028,53 +2029,33 @@ public class PhoneUtils {
      * call is active (like displaying the label "Conference call", and
      * enabling the "Manage conference" UI.)
      *
-     * Watch out: This method simply checks the number of Connections,
-     * *not* their states.  So if a Call has (for example) one ACTIVE
-     * connection and one DISCONNECTED connection, this method will return
-     * true (which is unintuitive, since the Call isn't *really* a
-     * conference call any more.)
-     *
-     * @return true if the specified call has more than one connection (in any state.)
+     * @return true if the specified call has more than one ACTIVE connection.
      */
     static boolean isConferenceCall(Call call) {
-        // CDMA phones don't have the same concept of "conference call" as
-        // GSM phones do; there's no special "conference call" state of
-        // the UI or a "manage conference" function.  (Instead, when
-        // you're in a 3-way call, all we can do is display the "generic"
-        // state of the UI.)  So as far as the in-call UI is concerned,
-        // Conference corresponds to generic display.
-        final PhoneGlobals app = PhoneGlobals.getInstance();
-        int phoneType = call.getPhone().getPhoneType();
-        if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
-            CdmaPhoneCallState.PhoneCallState state = app.cdmaPhoneCallState.getCurrentCallState();
-            if ((state == CdmaPhoneCallState.PhoneCallState.CONF_CALL)
-                    || ((state == CdmaPhoneCallState.PhoneCallState.THRWAY_ACTIVE)
-                    && !app.cdmaPhoneCallState.IsThreeWayCallOrigStateDialing())) {
+        return call.isMultiparty() && isRealConferenceCall(call);
+    }
+
+    /**
+     * A given call is only really a conference call if the number
+     * of ACTIVE connections, not the total number of connections,
+     * is greater than one.
+     *
+     */
+    static boolean isRealConferenceCall(Call call) {
+        List<Connection> connections;
+        connections = call.getConnections();
+        if (connections == null) {
+               return false;
+        }
+        int numActiveConnections = 0;
+        for (Connection conn : connections) {
+            if (DBG) log("  - CONN: " + conn + ", state = " + conn.getState());
+            if (conn.getState() == Call.State.ACTIVE) numActiveConnections++;
+            if (numActiveConnections > 1) {
                 return true;
             }
-        } else {
-            return call.isMultiparty();
         }
         return false;
-
-        // TODO: We may still want to change the semantics of this method
-        // to say that a given call is only really a conference call if
-        // the number of ACTIVE connections, not the total number of
-        // connections, is greater than one.  (See warning comment in the
-        // javadoc above.)
-        // Here's an implementation of that:
-        //        if (connections == null) {
-        //            return false;
-        //        }
-        //        int numActiveConnections = 0;
-        //        for (Connection conn : connections) {
-        //            if (DBG) log("  - CONN: " + conn + ", state = " + conn.getState());
-        //            if (conn.getState() == Call.State.ACTIVE) numActiveConnections++;
-        //            if (numActiveConnections > 1) {
-        //                return true;
-        //            }
-        //        }
-        //        return false;
     }
 
     /**
@@ -2196,6 +2177,13 @@ public class PhoneUtils {
         }
     }
 
+    static void muteOnNewCall(boolean muted) {
+        CallManager cm = PhoneGlobals.getInstance().mCM;
+        if (cm.hasActiveFgCall()) {
+            setMuteInternal(cm.getActiveFgCall().getPhone(), muted);
+        }
+    }
+
     /**
      *
      * Mute / umute the foreground phone, which has the current foreground call
@@ -2247,6 +2235,32 @@ public class PhoneUtils {
         // all the connections on conference calls.
         if (cm.hasActiveBgCall()) {
             for (Connection cn : cm.getFirstActiveBgCall().getConnections()) {
+                if (sConnectionMuteTable.get(cn) == null) {
+                    if (DBG) log("problem retrieving mute value for this connection.");
+                }
+                sConnectionMuteTable.put(cn, Boolean.valueOf(muted));
+            }
+        }
+    }
+
+    public static void updateMuteState(int sub, boolean muted) {
+        CallManager cm = PhoneGlobals.getInstance().mCM;
+
+        Phone phone = PhoneGlobals.getInstance().getPhone(sub);
+
+        // update the foreground connections to match.  This includes
+        // all the connections on conference calls.
+        for (Connection cn : phone.getForegroundCall().getConnections()) {
+            if (sConnectionMuteTable.get(cn) == null) {
+                if (DBG) log("problem retrieving mute value for this connection.");
+            }
+            sConnectionMuteTable.put(cn, Boolean.valueOf(muted));
+        }
+
+        // update the background connections to match.  This includes
+        // all the connections on conference calls.
+        if (cm.hasActiveBgCall(sub)) {
+            for (Connection cn : cm.getFirstActiveBgCall(sub).getConnections()) {
                 if (sConnectionMuteTable.get(cn) == null) {
                     if (DBG) log("problem retrieving mute value for this connection.");
                 }
@@ -3054,19 +3068,15 @@ public class PhoneUtils {
                 !PhoneGlobals.getInstance().mCM.hasActiveFgCallAnyPhone());
     }
 
-    private static boolean sVoipSupported = false;
-    static {
-        PhoneGlobals app = PhoneGlobals.getInstance();
-        sVoipSupported = SipManager.isVoipSupported(app)
-                && app.getResources().getBoolean(com.android.internal.R.bool.config_built_in_sip_phone)
-                && app.getResources().getBoolean(com.android.internal.R.bool.config_voice_capable);
-    }
-
     /**
      * @return true if this device supports voice calls using the built-in SIP stack.
      */
-    static boolean isVoipSupported() {
-        return sVoipSupported;
+    static boolean isVoipSupported(Context context) {
+        boolean builtInSip = context.getResources().getBoolean(
+                com.android.internal.R.bool.config_built_in_sip_phone);
+        boolean voiceCapable = context.getResources().getBoolean(
+                com.android.internal.R.bool.config_voice_capable);
+        return SipManager.isVoipSupported(context) && builtInSip && voiceCapable;
     }
 
     public static String getPresentationString(Context context, int presentation) {
@@ -3280,6 +3290,13 @@ public class PhoneUtils {
             log("IMS Conversion not required ");
         } else {
 
+            /*
+             * Initialize imsNumber if it's null to avoid Uri.fromParts() throws
+             * NullPointerException due to ssp scheme-specific-part is null.
+             */
+            if (imsNumber == null) {
+                imsNumber = "";
+            }
             intent.setData(Uri.fromParts(Constants.SCHEME_SIP, imsNumber, null));
             intent.putExtra(OutgoingCallBroadcaster.EXTRA_CALL_TYPE, callType);
 

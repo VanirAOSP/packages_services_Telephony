@@ -85,6 +85,11 @@ interface ICallCommandService {
     void mute(boolean onOff);
 
     /**
+     * Mute the phone on add call.
+     */
+    void muteInternal(boolean onOff);
+
+    /**
      * Turn on or off speaker.
      * TODO(klp): Remove in favor of setAudioMode
      */
@@ -144,4 +149,9 @@ interface ICallCommandService {
      * However retains the LCH state of the subscription.
      */
     void setActiveSubRetainLch(int subscriptionId);
+
+    /**
+     * Update connection mute state accordingly.
+     */
+    void updateMuteState(int subscriptionId, boolean muted);
 }

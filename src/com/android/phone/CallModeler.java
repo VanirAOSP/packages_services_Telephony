@@ -342,9 +342,17 @@ public class CallModeler extends Handler {
             }
 
             updateCallFromConnection(call, conn, false);
-
             for (int i = 0; i < mListeners.size(); ++i) {
                 mListeners.get(i).onIncoming(call);
+            }
+            if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
+                int subscription = conn.getCall().getPhone().getSubscription();
+                Log.i(TAG, "Setting Active sub : '" + subscription + "'");
+                PhoneUtils.setActiveSubscription(subscription);
+                // if any local hold tones are playing then they need to be stoped.
+                final MSimCallNotifier notifier =
+                        (MSimCallNotifier) PhoneGlobals.getInstance().notifier;
+                notifier.manageLocalCallWaitingTone();
             }
         }
 
@@ -470,6 +478,12 @@ public class CallModeler extends Handler {
      */
     private void onPhoneStateChanged(AsyncResult r) {
         Log.i(TAG, "onPhoneStateChanged: ");
+        //csvt state changed, do not update phone UI.
+        if(PhoneGlobals.getInstance().isCsvtActive())
+        {
+            Log.d(TAG, "csvt is active, do not update phone UI.");
+            return;
+        }
         final List<Call> updatedCalls = Lists.newArrayList();
         doUpdate(false, updatedCalls);
 

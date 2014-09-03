@@ -45,6 +45,7 @@ import android.widget.TabHost.TabSpec;
 import android.app.TabActivity;
 
 import static com.android.internal.telephony.MSimConstants.SUBSCRIPTION_KEY;
+import static com.android.internal.telephony.MSimConstants.DEFAULT_SUBSCRIPTION;
 
 public class SelectSubscription extends  TabActivity {
 
@@ -97,6 +98,12 @@ public class SelectSubscription extends  TabActivity {
                     .setAction(intent.getAction()).putExtra(SUBSCRIPTION_KEY, i);
             subscriptionPref.setContent(intent);
             tabHost.addTab(subscriptionPref);
+        }
+        tabHost.setCurrentTab(getIntent().getIntExtra(SUBSCRIPTION_KEY, DEFAULT_SUBSCRIPTION));
+
+        if ("com.android.phone.MSimMobileNetworkSubSettings".equals(targetClass)) {
+            // Update title for mobile networks settings.
+            setTitle(getResources().getText(R.string.mobile_networks));
         }
 
         ActionBar actionBar = getActionBar();
