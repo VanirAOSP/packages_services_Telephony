@@ -683,8 +683,9 @@ public class CallNotifier extends Handler
             }
 
             // Reset the ringtone to the default first.
-            mRinger.setCustomRingtoneUri(RingtoneManager.getActualRingtoneUriBySubId(
-                        mApplication.getApplicationContext(), subscription));
+            mRinger.setCustomRingtoneUri(subscription == 0 ?
+                                        Settings.System.DEFAULT_RINGTONE_URI
+                                        : Settings.System.DEFAULT_RINGTONE_URI_2);
 
             // query the callerinfo to try to get the ringer.
             PhoneUtils.CallerInfoToken cit = PhoneUtils.startGetCallerInfo(
@@ -2208,6 +2209,12 @@ public class CallNotifier extends Handler
         } else {
             Log.e(LOG_TAG, "Error EVENT_MODIFY_CALL AsyncResult ar= " + r);
         }
+    }
+
+    void onCdmaCallWaitingAnswered() {
+        // Remove Call waiting timers
+        removeMessages(CALLWAITING_CALLERINFO_DISPLAY_DONE);
+        removeMessages(CALLWAITING_ADDCALL_DISABLE_TIMEOUT);
     }
 
     private void log(String msg) {

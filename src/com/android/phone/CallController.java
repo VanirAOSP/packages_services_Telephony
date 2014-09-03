@@ -428,6 +428,13 @@ public class CallController extends Handler {
             if (DBG) log("==> UPDATING status to: " + okToCallStatus);
         }
 
+        if ((isEmergencyNumber || isEmergencyIntent) &&
+                (MSimTelephonyManager.getDefault().isMultiSimEnabled())) {
+            final MSimCallNotifier notifier =
+                    (MSimCallNotifier)PhoneGlobals.getInstance().notifier;
+            notifier.onEmergencyCallDialed();
+        }
+
         if (okToCallStatus != CallStatusCode.SUCCESS) {
             // If this is an emergency call, launch the EmergencyCallHelperService
             // to turn on the radio and retry the call.

@@ -37,6 +37,7 @@ import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceGroup;
 import android.preference.PreferenceScreen;
+import android.telephony.MSimTelephonyManager;
 import android.telephony.ServiceState;
 import android.text.TextUtils;
 import android.view.MenuItem;
@@ -172,7 +173,7 @@ public class NetworkSetting extends PreferenceActivity
             mNetworkQueryService = ((NetworkQueryService.LocalBinder) service).getService();
             // as soon as it is bound, run a query.
             if (getApplicationContext().getResources().getBoolean(
-                    R.bool.config_disable_data_manual_plmn)) {
+                    R.bool.config_disable_data_manual_plmn) && !isMultiSimModeDsda()) {
                 mSearchButton.setEnabled(false);
                 Message onCompleteMsg = mHandler.obtainMessage(EVENT_NETWORK_DATA_MANAGER_DONE);
                 mDataManager.updateDataState(false, onCompleteMsg);
@@ -209,7 +210,7 @@ public class NetworkSetting extends PreferenceActivity
 
         if (preference == mSearchButton) {
             if (getApplicationContext().getResources().getBoolean(
-                    R.bool.config_disable_data_manual_plmn)) {
+                    R.bool.config_disable_data_manual_plmn) && !isMultiSimModeDsda()) {
                 mSearchButton.setEnabled(false);
                 Message onCompleteMsg = mHandler.obtainMessage(EVENT_NETWORK_DATA_MANAGER_DONE);
                 mDataManager.updateDataState(false, onCompleteMsg);
@@ -290,7 +291,7 @@ public class NetworkSetting extends PreferenceActivity
         bindService (new Intent(this, NetworkQueryService.class), mNetworkQueryServiceConnection,
                 Context.BIND_AUTO_CREATE);
         if (getApplicationContext().getResources().getBoolean(
-                R.bool.config_disable_data_manual_plmn)) {
+                R.bool.config_disable_data_manual_plmn) && !isMultiSimModeDsda()) {
             mDataManager = new NetworkSettingDataManager(getApplicationContext());
         }
     }
@@ -565,6 +566,12 @@ public class NetworkSetting extends PreferenceActivity
         mRatMap.put(String.valueOf(ServiceState.RIL_RADIO_TECHNOLOGY_HSPAP), "3G");
         mRatMap.put(String.valueOf(ServiceState.RIL_RADIO_TECHNOLOGY_GSM), "2G");
         mRatMap.put(String.valueOf(ServiceState.RIL_RADIO_TECHNOLOGY_TD_SCDMA), "3G");
+    }
+
+    private boolean isMultiSimModeDsda() {
+        return (MSimTelephonyManager.getDefault()
+                .getMultiSimConfiguration()
+                == MSimTelephonyManager.MultiSimVariants.DSDA);
     }
 
     private void log(String msg) {

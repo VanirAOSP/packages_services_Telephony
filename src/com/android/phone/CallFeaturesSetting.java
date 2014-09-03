@@ -81,6 +81,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
+import static com.android.internal.telephony.MSimConstants.SUB1;
+
 /**
  * Top level "Call settings" UI; see res/xml/call_feature_setting.xml
  *
@@ -1791,10 +1793,11 @@ public class CallFeaturesSetting extends PreferenceActivity
             int phoneType = mPhone.getPhoneType();
             if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
                 Preference fdnButton = prefSet.findPreference(BUTTON_FDN_KEY);
-                if (fdnButton != null)
+                if (fdnButton != null && getResources().getBoolean(R.bool.config_fdn_disable))
                     prefSet.removePreference(fdnButton);
                 if (!getResources().getBoolean(R.bool.config_voice_privacy_disable)) {
                     addPreferencesFromResource(R.xml.cdma_call_privacy);
+                    PhoneGlobals.initCallWaitingPref(this, SUB1);
                 }
             } else if (phoneType == PhoneConstants.PHONE_TYPE_GSM) {
                 addPreferencesFromResource(R.xml.gsm_umts_call_options);

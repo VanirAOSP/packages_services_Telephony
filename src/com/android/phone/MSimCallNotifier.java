@@ -77,6 +77,9 @@ public class MSimCallNotifier extends CallNotifier {
     private static final boolean sLocalCallHoldToneEnabled =
             SystemProperties.getBoolean("persist.radio.lch_inband_tone", false);
 
+    private boolean[] mIsPermDiscCauseReceived = new
+            boolean[MSimTelephonyManager.getDefault().getPhoneCount()];
+
     /**
      * Initialize the singleton CallNotifier instance.
      * This is only done once, at startup, from PhoneApp.onCreate().
@@ -360,8 +363,8 @@ public class MSimCallNotifier extends CallNotifier {
         if (state == PhoneConstants.State.OFFHOOK) {
             if (DBG) log("unknown connection appeared...");
 
-            // update the active sub before launching incall UI.
-            PhoneUtils.setActiveSubscription(subscription);
+            // update the active sub & conversation sub before launching incall UI.
+            PhoneUtils.setActiveAndConversationSub(subscription);
             // basically do onPhoneStateChanged + display the incoming call UI
             onPhoneStateChanged(r);
         }
@@ -398,6 +401,24 @@ public class MSimCallNotifier extends CallNotifier {
                 .enableNotificationAlerts(state == PhoneConstants.State.IDLE);
 
         Phone fgPhone = mCM.getFgPhone(subscription);
+
+        // CTA require that UE should disconnect current foregroundCall if answering a MT call on
+        // other sub and current foregroundCall callstate is dialing
+        if (fgPhone.getForegroundCall().getState() == Call.State.ACTIVE &&
+                mApplication.getApplicationContext().getResources().getBoolean
+                (R.bool.config_disconnect_other_fgcall)) {
+            for (int i = 0; i < MSimTelephonyManager.getDefault().getPhoneCount(); i++) {
+                if (i != subscription) {
+                    Phone otherFgPhone = mCM.getFgPhone(i);
+                    if (DBG) log("otherFgPhoneState: " + otherFgPhone.getForegroundCall().
+                            getState());
+                    if (otherFgPhone.getForegroundCall().getState() == Call.State.DIALING ||
+                            otherFgPhone.getForegroundCall().getState() == Call.State.ALERTING) {
+                        PhoneUtils.hangupActiveCall(otherFgPhone.getForegroundCall());
+                    }
+                }
+            }
+        }
         if (fgPhone.getPhoneType() == PhoneConstants.PHONE_TYPE_CDMA) {
             if ((fgPhone.getForegroundCall().getState() == Call.State.ACTIVE)
                     && ((mPreviousCdmaCallState == Call.State.DIALING)
@@ -612,11 +633,32 @@ public class MSimCallNotifier extends CallNotifier {
             if (isEmergencyNumber &&
                     (cause == Connection.DisconnectCause.EMERGENCY_TEMP_FAILURE
                     || cause == Connection.DisconnectCause.EMERGENCY_PERM_FAILURE)) {
-                int subToCall = PhoneUtils.getNextSubscriptionId(phone.getSubscription());
-                log("Redial emergency call on subscription " + subToCall);
-                PhoneUtils.placeCall(mApplication,
-                        mApplication.getPhone(subToCall), number, null, false);
-                return;
+                int subToCall = phone.getSubscription();
+                if (cause == Connection.DisconnectCause.EMERGENCY_PERM_FAILURE) {
+                    log("EMERGENCY_PERM_FAILURE received on sub:" +
+                            phone.getSubscription());
+                    // update mIsPermDiscCauseReceived so that next redial doesn't occur
+                    // on this sub
+                    mIsPermDiscCauseReceived[phone.getSubscription()] = true;
+                    subToCall = MSimConstants.INVALID_SUBSCRIPTION;
+                }
+                // Check for any subscription on which EMERGENCY_PERM_FAILURE is received
+                // if no such sub, then redial should be stopped.
+                for (int i = PhoneUtils.getNextSubscriptionId(phone.getSubscription());
+                        i != phone.getSubscription(); i = PhoneUtils.getNextSubscriptionId(i)) {
+                    if (mIsPermDiscCauseReceived[i] == false) {
+                        subToCall = i;
+                        break;
+                    }
+                }
+                if (subToCall == MSimConstants.INVALID_SUBSCRIPTION) {
+                    log("EMERGENCY_PERM_FAILURE recieved on all subs, abort redial");
+                } else {
+                    log("Redial emergency call on subscription " + subToCall);
+                    PhoneUtils.placeCall(mApplication,
+                            mApplication.getPhone(subToCall), number, null, false);
+                    return;
+                }
             }
         }
         // If this is the end of an OTASP call, pass it on to the PhoneApp.
@@ -769,6 +811,37 @@ public class MSimCallNotifier extends CallNotifier {
                     mIsCdmaRedialCall = false;
                 }
             }
+            int activeSub = PhoneUtils.getActiveSubscription();
+            int ConversationSub = mCM.getSubInConversation();
+            if (PhoneUtils.getOtherActiveSub(activeSub) == MSimConstants.INVALID_SUBSCRIPTION
+                    && mCM.getState(activeSub) == PhoneConstants.State.IDLE) {
+                log("No calls active on both subs");
+                // No calls active on both subs, below call takes care of stopping tones
+                PhoneUtils.setSubInConversation(MSimConstants.INVALID_SUBSCRIPTION);
+            } else if (subscription == ConversationSub && mCM.getState(subscription)
+                    == PhoneConstants.State.IDLE) {
+                log("No calls active in conversation sub, only update conversation sub");
+                // Calls active on active sub, but not on conversation sub
+                mCM.setSubInConversation(MSimConstants.INVALID_SUBSCRIPTION);
+            } else if (subscription == activeSub && ConversationSub !=
+                    MSimConstants.INVALID_SUBSCRIPTION && mCM.getState(activeSub)
+                    == PhoneConstants.State.OFFHOOK) {
+                // Call on active sub disconnected while user is in conversation on another sub
+                // In this case, if no other calls on active sub, then InCallPresenter takes
+                // care of switching sub to other sub and setting mute on other sub.
+                // If active sub has other calls, then set active sub to conversation sub here
+                log("Set active sub to conversation sub " + ConversationSub);
+                PhoneUtils.setActiveSubscription(ConversationSub);
+            }
+        }
+    }
+
+    /**
+     * Resets mIsPermDiscCauseReceived array elements to false.
+     */
+    void onEmergencyCallDialed() {
+        for (int i = 0; i < mIsPermDiscCauseReceived.length; i++) {
+            mIsPermDiscCauseReceived[i] = false;
         }
     }
 
@@ -779,9 +852,9 @@ public class MSimCallNotifier extends CallNotifier {
     protected void resetAudioStateAfterDisconnect() {
         if (VDBG) log("resetAudioStateAfterDisconnect()...");
 
-        // If other subscription has active voice call, do not reset the audio.
-        if (PhoneUtils.isAnyOtherSubActive(PhoneUtils.getActiveSubscription())) {
-            if (DBG) log(" Other sub has active call, Do not reset audio ");
+        // If any subscription has active voice call, do not reset the audio.
+        if (PhoneUtils.isAnySubActive()) {
+            if (DBG) log("there is a sub which has active call, Do not reset audio ");
             return;
         }
 
@@ -859,6 +932,7 @@ public class MSimCallNotifier extends CallNotifier {
                             + activeSub + " other sub = " + otherSub);
                     reStartMSimInCallTones();
                 } else {
+                    if (VDBG) log(" entered manageMSimInCallTones ");
                     startMSimInCallTones();
                 }
             }
@@ -870,15 +944,10 @@ public class MSimCallNotifier extends CallNotifier {
 
     public void reStartMSimInCallTones() {
         stopMSimInCallTones();
-        if (sLocalCallHoldToneEnabled) {
-            /* Remove any pending PHONE_START_MSIM_INCALL_TONE messages from queue */
-            removeMessages(PHONE_START_MSIM_INCALL_TONE);
-            Message message = Message.obtain(this, PHONE_START_MSIM_INCALL_TONE);
-            sendMessageDelayed(message, 100);
-        } else {
-            /* Dont need 100 msec delay when SCH tones to be sent as DTMF */
-            playLchDtmf();
-        }
+        /* Remove any pending PHONE_START_MSIM_INCALL_TONE messages from queue */
+        removeMessages(PHONE_START_MSIM_INCALL_TONE);
+        Message message = Message.obtain(this, PHONE_START_MSIM_INCALL_TONE);
+        sendMessageDelayed(message, 100);
     }
 
     private void playLchDtmf() {

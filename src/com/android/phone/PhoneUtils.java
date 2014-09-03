@@ -357,6 +357,8 @@ public class PhoneUtils {
                         app.cdmaPhoneCallState.setCurrentCallState(
                                 CdmaPhoneCallState.PhoneCallState.SINGLE_ACTIVE);
                     } else {
+                        // As waiting call answered, remove any timers related to call waiting
+                        notifier.onCdmaCallWaitingAnswered();
                         // This is the CALL WAITING call being answered.
                         // Set the Phone Call State to CONF_CALL
                         app.cdmaPhoneCallState.setCurrentCallState(
@@ -715,6 +717,8 @@ public class PhoneUtils {
         // correctly, and that we wouldn't have started the ringer in the
         // first place.
 
+        // Set conversation sub to active sub, as user answered call
+        setSubInConversation(getActiveSubscription());
         // hanging up the active call also accepts the waiting call
         // while active call and waiting call are from the same phone
         // i.e. both from GSM phone
@@ -848,6 +852,11 @@ public class PhoneUtils {
             PhoneUtils.isRoutableViaGateway(number)) {  // Filter out MMI, OTA and other codes.
             useGateway = true;
         }
+        if(isCsvtCallActive())
+        {
+            Log.e(LOG_TAG, "Unsupported another CALL when background CSVT active");
+            return CALL_STATUS_FAILED;
+        }
 
         int status = CALL_STATUS_DIALED;
         Connection connection;
@@ -914,8 +923,8 @@ public class PhoneUtils {
             }
         } else {
             // The phone on whilch dial request for voice call is initiated
-            // set it as active subscription
-            setActiveSubscription(phone.getSubscription());
+            // set it as active & conversation subscription
+            setActiveAndConversationSub(phone.getSubscription());
 
             // Now that the call is successful, we can save the gateway info for the call
             if (callGateway != null) {
@@ -2202,14 +2211,16 @@ public class PhoneUtils {
         if (isInEmergencyCall(cm)) {
             muted = false;
         }
-
         int activeSub = getActiveSubscription();
-        if (cm.getLocalCallHoldStatus(activeSub) == true) {
+        if (cm.getLocalCallHoldStatus(activeSub) == true && cm.getSubInConversation() ==
+                MSimConstants.INVALID_SUBSCRIPTION) {
+            if (DBG) log("setMute: muted:" + muted);
             if (muted == false) {
                 // if the current active sub is in lch state and user
                 // has clicked the unmute button, deactivate this sub's
-                // lch state and set the audio mode accordingly.
-                cm.deactivateLchState(activeSub);
+                // lch state by setting SubInconversation to active sub
+                // and set the audio mode accordingly.
+                cm.setSubInConversation(activeSub);
                 cm.setAudioMode();
             }
 
@@ -3479,17 +3490,39 @@ public class PhoneUtils {
         int activeSub = getActiveSubscription();
 
         if (activeSub != subscription) {
+            cm.setActiveSubscription(subscription);
+        }
+    }
+
+    public static void setSubInConversation(int subscription) {
+        CallManager cm = PhoneGlobals.getInstance().mCM;
+        int conversationSub = cm.getSubInConversation();
+
+        if (conversationSub != subscription) {
+            log("setSubInConversation:" + subscription);
+            cm.setSubInConversation(subscription);
+            cm.setAudioMode();
+            // If there is a change in active subscription while both the
+            // subscriptions are in active state, need to switch the
+            // playing of LCH/SCH tone to new LCH subscription.
             if ((cm.getState(subscription) == PhoneConstants.State.OFFHOOK) &&
-                    (cm.getState(activeSub) == PhoneConstants.State.OFFHOOK)) {
-                // If there is a change in active subscription while both the
-                // subscriptions are in active state, need to siwtch the
-                // playing of LCH/SCH tone to new LCH subscription.
+                (cm.getState(conversationSub) == PhoneConstants.State.OFFHOOK)) {
                 final MSimCallNotifier notifier =
                         (MSimCallNotifier)PhoneGlobals.getInstance().notifier;
                 notifier.manageMSimInCallTones(true);
             }
-            cm.setActiveSubscription(subscription);
         }
+    }
+    /**
+     * Set the given subscription as current active subscription i.e currently on
+     * which voice call is active(with state OFFHOOK/RINGING) and which needs to be
+     * visible to user.
+     *
+     * @param subscription the sub id which needs to be active one.
+     */
+    public static void setActiveAndConversationSub(int subscription) {
+        setActiveSubscription(subscription);
+        setSubInConversation(subscription);
     }
 
     /**
@@ -3558,6 +3591,25 @@ public class PhoneUtils {
         return otherSub;
     }
 
+    /**
+     * Check whether any sub is in active state.
+     * @return if any sub is active, return true. if no sub is in
+     * active state return false.
+     */
+    static boolean isAnySubActive() {
+        int count = MSimTelephonyManager.getDefault().getPhoneCount();
+        CallManager cm = MSimPhoneGlobals.getInstance().mCM;
+
+        if (DBG) Log.d(LOG_TAG, "isAnySubActive");
+        for (int i = 0; i < count; i++) {
+            if (cm.getState(i) != PhoneConstants.State.IDLE) {
+                Log.d(LOG_TAG, "isAnySubActive: active sub  = " + i );
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static boolean isCsvtCallActive() {
         boolean isActive = false;
         try {
@@ -3591,7 +3643,7 @@ public class PhoneUtils {
                 // While two subscriptions have active voice calls and if user
                 // rejects new waiting call on LCH subscription, bring back the
                 // subscription to foreground on which user currently speaking.
-                setActiveSubscription(otherActiveSub);
+                setActiveSubscription(cm.getSubInConversation());
             }
         }
     }

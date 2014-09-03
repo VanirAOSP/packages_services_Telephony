@@ -192,6 +192,7 @@ public class MSimCallFeaturesSubSetting extends PreferenceActivity
     private static final String BUTTON_CF_EXPAND_KEY = "button_cf_expand_key";
     private static final String BUTTON_MORE_EXPAND_KEY = "button_more_expand_key";
     private static final String BUTTON_IPPREFIX_KEY = "button_ipprefix_key";
+    private static final String BUTTON_CB_EXPAND_KEY = "button_callbarring_expand_key";
 
 
     private static final String VM_NUMBERS_SHARED_PREFERENCES_NAME = "vm_numbers";
@@ -597,11 +598,20 @@ public class MSimCallFeaturesSubSetting extends PreferenceActivity
                 saveVoiceMailAndForwardingNumber(newProviderKey, newProviderSettings);
             }
         } else if (preference == mVoicemailNotificationVibrate) {
+            boolean doVibrate = (Boolean) objValue;
             PreferenceManager
             .getDefaultSharedPreferences(this)
             .edit()
             .putBoolean(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY + mPhone.getSubscription(),
-                    mVoicemailNotificationVibrate.isChecked()).commit();
+                    doVibrate).commit();
+        } else if (preference == mVoicemailNotificationRingtone) {
+            String url = objValue == null ? null : objValue.toString();
+            PreferenceManager
+                    .getDefaultSharedPreferences(this)
+                    .edit()
+                    .putString(
+                            BUTTON_VOICEMAIL_NOTIFICATION_RINGTONE_KEY + mPhone.getSubscription(),
+                            url).commit();
         }
         // always let the preference setting proceed.
         return true;
@@ -1572,6 +1582,7 @@ public class MSimCallFeaturesSubSetting extends PreferenceActivity
             mVoicemailSettings = (PreferenceScreen)findPreference(BUTTON_VOICEMAIL_SETTING_KEY);
             mVoicemailNotificationRingtone =
                     findPreference(BUTTON_VOICEMAIL_NOTIFICATION_RINGTONE_KEY);
+            mVoicemailNotificationRingtone.setOnPreferenceChangeListener(this);
             mVoicemailNotificationVibrate =
                     (CheckBoxPreference) findPreference(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY);
             mVoicemailNotificationVibrate.setOnPreferenceChangeListener(this);
@@ -1605,10 +1616,11 @@ public class MSimCallFeaturesSubSetting extends PreferenceActivity
             int phoneType = mPhone.getPhoneType();
             if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
                 Preference fdnButton = prefSet.findPreference(BUTTON_FDN_KEY);
-                if (fdnButton != null)
+                if (fdnButton != null && getResources().getBoolean(R.bool.config_fdn_disable))
                     prefSet.removePreference(fdnButton);
                 if (!getResources().getBoolean(R.bool.config_voice_privacy_disable)) {
                     addPreferencesFromResource(R.xml.cdma_call_privacy);
+                    PhoneGlobals.initCallWaitingPref(this, mSubscription);
                 }
             } else if (phoneType == PhoneConstants.PHONE_TYPE_GSM) {
                 addPreferencesFromResource(R.xml.gsm_umts_call_options);
@@ -1617,6 +1629,8 @@ public class MSimCallFeaturesSubSetting extends PreferenceActivity
                         (PreferenceScreen) findPreference(BUTTON_MORE_EXPAND_KEY);
                 mSubscriptionPrefEXPAND.getIntent().putExtra(SUBSCRIPTION_KEY, mSubscription);
                 mSubscriptionPrefMOREEXPAND.getIntent().putExtra(SUBSCRIPTION_KEY, mSubscription);
+                findPreference(BUTTON_CB_EXPAND_KEY).getIntent().putExtra(SUBSCRIPTION_KEY,
+                        mSubscription);
             } else {
                 throw new IllegalStateException("Unexpected phone type: " + phoneType);
             }
@@ -1683,7 +1697,7 @@ public class MSimCallFeaturesSubSetting extends PreferenceActivity
             final SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(
                     mPhone.getContext());
             // for voicemail notifications, we use the value saved in Phone's shared preferences.
-            String uriString = prefs.getString(preference.getKey(), null);
+            String uriString = prefs.getString(preference.getKey() + mSubscription, null);
             if (TextUtils.isEmpty(uriString)) {
                 // silent ringtone
                 ringtoneUri = null;
@@ -1751,10 +1765,14 @@ public class MSimCallFeaturesSubSetting extends PreferenceActivity
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(
                 mPhone.getContext());
-        if (migrateVoicemailVibrationSettingsIfNeeded(prefs,  mPhone.getSubscription())) {
-            mVoicemailNotificationVibrate.setChecked(prefs.getBoolean(
-                    BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY + mPhone.getSubscription(), false));
-        }
+        prefs.edit()
+                .putString(
+                        BUTTON_VOICEMAIL_NOTIFICATION_RINGTONE_KEY,
+                        prefs.getString(
+                                BUTTON_VOICEMAIL_NOTIFICATION_RINGTONE_KEY
+                                        + mPhone.getSubscription(), null)).commit();
+        mVoicemailNotificationVibrate.setChecked(prefs.getBoolean(
+                BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY + mPhone.getSubscription(), false));
 
         lookupRingtoneName();
     }
