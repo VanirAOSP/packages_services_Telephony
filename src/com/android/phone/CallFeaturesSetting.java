@@ -2484,10 +2484,6 @@ public class CallFeaturesSetting extends PreferenceActivity
                 Preference fdnButton = preferenceScreen.findPreference(BUTTON_FDN_KEY);
                 if (fdnButton != null && getResources().getBoolean(R.bool.config_fdn_disable))
                     preferenceScreen.removePreference(fdnButton);
-                if (!getResources().getBoolean(R.bool.config_voice_privacy_disable)) {
-                    addPreferencesFromResource(R.xml.cdma_call_privacy);
-                    PhoneGlobals.initCallWaitingPref(this, SUB1);
-                }
             }
         }
     }
@@ -2498,6 +2494,7 @@ public class CallFeaturesSetting extends PreferenceActivity
             if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
                 if (!getResources().getBoolean(R.bool.config_voice_privacy_disable)) {
                     addPreferencesFromResource(R.xml.cdma_call_privacy);
+                    PhoneGlobals.initCallWaitingPref(this, SUB1);
                 }
             } else if (phoneType == PhoneConstants.PHONE_TYPE_GSM) {
                 addPreferencesFromResource(R.xml.gsm_umts_call_options);
