@@ -29,6 +29,7 @@
 
 package com.android.phone;
 
+import android.app.ActionBar;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ProgressDialog;
@@ -43,7 +44,9 @@ import android.preference.Preference;
 import android.preference.PreferenceActivity;
 import android.preference.PreferenceScreen;
 import android.provider.Settings;
+import android.telephony.MSimTelephonyManager;
 import android.util.Log;
+import android.view.MenuItem;
 import android.view.WindowManager;
 import android.widget.Toast;
 import com.android.internal.telephony.Phone;
@@ -51,15 +54,15 @@ import com.android.internal.telephony.PhoneFactory;
 import com.android.internal.telephony.CommandsInterface;
 import static com.android.internal.telephony.MSimConstants.SUBSCRIPTION_KEY;
 
-public class CallBarring extends PreferenceActivity implements DialogInterface.OnClickListener,
-        Preference.OnPreferenceChangeListener, EditPinPreference.OnPinEnteredListener {
+public class CallBarring extends TimeConsumingPreferenceActivity implements
+        DialogInterface.OnClickListener, Preference.OnPreferenceChangeListener,
+        EditPinPreference.OnPinEnteredListener {
 
     private static final String  LOG_TAG = "CallBarring";
     private static final boolean DBG = true;
 
     private static final String  CALL_BARRING_OUTGOING_KEY = "call_barring_outgoing_key";
     private static final String  CALL_BARRING_INCOMING_KEY = "call_barring_incoming_key";
-    private static final String  CALL_BARRING_CANCEL_ALL_KEY = "call_barring_cancel_all_key";
     private static final String  CALL_BARRING_CHANGE_PSW_KEY = "call_barring_change_psw_key";
 
     private static final String  SETOUTGOING_KEY = "SETOUTGOING_KEY";
@@ -87,15 +90,11 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
 
     private static final int EVENT_CB_QUERY_ALL = 100;
     private static final int EVENT_CB_CANCEL_QUERY = 200;
-    private static final int EVENT_CB_CANCEL_ALL = 300;
     private static final int EVENT_CB_SET_COMPLETE = 400;
     private static final int EVENT_CB_CHANGE_PSW = 500;
 
     // dialog id for create
     private static final int BUSY_DIALOG = 100;
-    private static final int EXCEPTION_ERROR = 200;
-    private static final int RESPONSE_ERROR = 300;
-    private static final int RADIO_OFF_ERROR = 400;
     private static final int INITIAL_BUSY_DIALOG = 500;
     private static final int INPUT_PSW_DIALOG = 600;
 
@@ -128,7 +127,6 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
 
     private ListPreference mListOutgoing = null;
     private ListPreference mListIncoming = null;
-    private EditPinPreference mDialogCancelAll = null;
     private EditPinPreference mDialogChangePSW = null;
 
     @Override
@@ -144,6 +142,12 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
         if (DBG) log("mSubscription: " + mSubscription);
         mPhone = PhoneGlobals.getInstance().getPhone(mSubscription);
 
+        ActionBar actionBar = getActionBar();
+        if (actionBar != null) {
+            // android.R.id.home will be triggered in onOptionsItemSelected()
+            actionBar.setDisplayHomeAsUpEnabled(true);
+        }
+
         PreferenceScreen prefSet = getPreferenceScreen();
 
         mListOutgoing = (ListPreference) prefSet.findPreference(CALL_BARRING_OUTGOING_KEY);
@@ -151,9 +155,7 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
         mListOutgoing.setOnPreferenceChangeListener(this);
         mListIncoming.setOnPreferenceChangeListener(this);
 
-        mDialogCancelAll = (EditPinPreference) prefSet.findPreference(CALL_BARRING_CANCEL_ALL_KEY);
         mDialogChangePSW = (EditPinPreference) prefSet.findPreference(CALL_BARRING_CHANGE_PSW_KEY);
-        mDialogCancelAll.setOnPinEnteredListener(this);
         mDialogChangePSW.setOnPinEnteredListener(this);
 
         if (icicle != null) {
@@ -182,7 +184,7 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
     }
 
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
 
         if (DBG) log("onResume");
@@ -194,8 +196,7 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
                 queryAllCBOptions();
             } else {
                 if (DBG) log("onResume: airplane mode on");
-                showDialog (RADIO_OFF_ERROR);
-                finish();
+                showDialog(RADIO_OFF_ERROR);
             }
         } else {
             mListOutgoing.setValue(String.valueOf(mOutgoingState));
@@ -247,7 +248,8 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
                     status = handleGetCBMessage(ar, msg.arg1);
                     if (status != MSG_OK) {
                         removeDialog(INITIAL_BUSY_DIALOG);
-                        Log.d("CallBarring","EXCEPTION_ERROR!");
+                        getPreferenceScreen().setEnabled(false);
+                        showDialog(EXCEPTION_ERROR);
                         return;
                     }
 
@@ -288,7 +290,8 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
 
     private int handleGetCBMessage(AsyncResult ar, int reason) {
         if (ar.exception != null) {
-            Log.e(LOG_TAG, "handleGetCBMessage: Error getting CB enable state.");
+            Log.e(LOG_TAG, "handleGetCBMessage: Error getting CB enable state (" + reason + ").",
+                    ar.exception);
             return MSG_EXCEPTION;
         } else if (ar.userObj instanceof Throwable) {
             Log.e(LOG_TAG, "handleGetCBMessage: Error during set call barring, reason: " + reason +
@@ -368,9 +371,13 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
         String message = null;
         switch (mDialogState) {
             case CB_OUTGOING_MODE:
-            case CB_INCOMING_MODE:
+                message = getResources().getString(R.string.input_password);
                 mDialogChangePSW.setDialogTitle(
-                        getResources().getString(R.string.input_password));
+                        getResources().getString(R.string.call_barring_outgoing));
+            case CB_INCOMING_MODE:
+                message = getResources().getString(R.string.input_password);
+                mDialogChangePSW.setDialogTitle(
+                        getResources().getString(R.string.call_barring_incoming));
                 break;
             case OLD_PSW_MODE:
                 message = getResources().getString(R.string.psw_enter_old);
@@ -416,22 +423,7 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
         String tmpPsw = preference.getText();
         preference.setText("");
 
-        if (preference == mDialogCancelAll) {
-            if ((mOutgoingState == CB_CLOSE_OUT) && (mIncomingState == CB_CLOSE_IN)) {
-                showToast(getResources().getString(R.string.no_call_barring));
-                return;
-            }
-
-            if (!reasonablePSW(tmpPsw)) {
-                mError = getResources().getString(R.string.invalidPsw);
-                showCancelDialog();
-                return;
-            }
-
-            showDialog(BUSY_DIALOG);
-            mPhone.setCallBarringOption(CommandsInterface.CB_FACILITY_BA_ALL, false, tmpPsw,
-                    Message.obtain(mSetOptionComplete, EVENT_CB_CANCEL_ALL));
-        } else if (preference == mDialogChangePSW) {
+        if (preference == mDialogChangePSW) {
             switch (mDialogState) {
                 case CB_OUTGOING_MODE:
                 case CB_INCOMING_MODE:
@@ -454,8 +446,6 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
                         facility = getBarringFacility(lockState ? mSetIncoming : mIncomingState);
                     } else {
                         dismissBusyDialog();
-                        showToast(getResources().getString(R.string.no_call_barring));
-                        Log.e(LOG_TAG, "Call barring state error!");
                         return;
                     }
 
@@ -513,18 +503,6 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
             AsyncResult ar = (AsyncResult) msg.obj;
 
             switch (msg.what) {
-                case EVENT_CB_CANCEL_ALL:
-                    dismissBusyDialog();
-                    if (ar.exception != null) {
-                        finish();
-                        showToast(getResources().getString(R.string.response_error));
-                    } else {
-                        mOutgoingState = CB_CLOSE_OUT;
-                        mIncomingState = CB_CLOSE_IN;
-                        syncUiWithState();
-                        showToast(getResources().getString(R.string.operation_successfully));
-                    }
-                    break;
                 case EVENT_CB_SET_COMPLETE:
                     dismissBusyDialog();
                     if (ar.exception != null) {
@@ -555,12 +533,6 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
         }
     };
 
-    private void showCancelDialog() {
-        mDialogCancelAll.setText(mPassword);
-        mDialogCancelAll.setDialogMessage(mError);
-        mDialogCancelAll.showPinDialog();
-    }
-
     private boolean reasonablePSW(String psw) {
         if (psw == null || psw.length() < MIN_PSW_LENGTH || psw.length() > MAX_PSW_LENGTH) {
             return false;
@@ -575,6 +547,20 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
 
     private void showToast(String message) {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        final int itemId = item.getItemId();
+        if (itemId == android.R.id.home) {  // See ActionBar#setDisplayHomeAsUpEnabled()
+            if (MSimTelephonyManager.getDefault().isMultiSimEnabled()) {
+                MSimCallFeaturesSubSetting.goUpToTopLevelSetting(this);
+            } else {
+                CallFeaturesSetting.goUpToTopLevelSetting(this);
+            }
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -601,44 +587,8 @@ public class CallBarring extends PreferenceActivity implements DialogInterface.O
 
             return dialog;
 
-        // Handle error dialog codes
-        } else if ((id == RESPONSE_ERROR) || (id == EXCEPTION_ERROR) || (id == RADIO_OFF_ERROR)) {
-            int msgId;
-            int titleId = R.string.error_updating_title;
-            AlertDialog.Builder b = new AlertDialog.Builder(this);
-
-            switch (id) {
-                case RESPONSE_ERROR:
-                    msgId = R.string.response_error;
-                    // Set Button 2, tells the activity that the error is
-                    // recoverable on dialog exit.
-                    b.setNegativeButton(R.string.close_dialog, this);
-                    break;
-                case RADIO_OFF_ERROR:
-                    msgId = R.string.radio_off_error;
-                    // Set Button 3
-                    b.setNeutralButton(R.string.close_dialog, this);
-                    break;
-                case EXCEPTION_ERROR:
-                default:
-                    msgId = R.string.exception_error;
-                    // Set Button 3, tells the activity that the error is
-                    // not recoverable on dialog exit.
-                    b.setNeutralButton(R.string.close_dialog, this);
-                    break;
-            }
-
-            b.setTitle(getText(titleId));
-            b.setMessage(getText(msgId));
-            b.setCancelable(false);
-            AlertDialog dialog = b.create();
-
-            // make the dialog more obvious by bluring the background.
-            dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
-
-            return dialog;
         }
-        return null;
+        return super.onCreateDialog(id);
     }
 
     private final void dismissBusyDialog() {

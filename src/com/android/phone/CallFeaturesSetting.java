@@ -1667,11 +1667,6 @@ public class CallFeaturesSetting extends PreferenceActivity
             initVoiceMailProviders();
         }
 
-        if (mPlayDtmfTone != null) {
-            mPlayDtmfTone.setChecked(Settings.System.getInt(contentResolver,
-                    Settings.System.DTMF_TONE_WHEN_DIALING, 1) != 0);
-        }
-
         mFlipAction = (ListPreference) findPreference(FLIP_ACTION_KEY);
 
         if (mIPPrefix != null) {
@@ -1687,6 +1682,11 @@ public class CallFeaturesSetting extends PreferenceActivity
         final ContentResolver contentResolver = getContentResolver();
 
         mEmergencyCall = (PreferenceScreen) findPreference(BUTTON_EMERGENCY_CALL_KEY);
+
+        if (mPlayDtmfTone != null) {
+            mPlayDtmfTone.setChecked(Settings.System.getInt(contentResolver,
+                    Settings.System.DTMF_TONE_WHEN_DIALING, 1) != 0);
+        }
 
         if (mButtonDTMF != null) {
             if (getResources().getBoolean(R.bool.dtmf_type_enabled)) {
