@@ -19,7 +19,6 @@
 
 package com.android.phone;
 
-import android.app.ActionBar;
 import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.ComponentName;
@@ -40,7 +39,6 @@ import android.preference.PreferenceScreen;
 import android.telephony.MSimTelephonyManager;
 import android.telephony.ServiceState;
 import android.text.TextUtils;
-import android.view.MenuItem;
 import android.util.Log;
 
 import com.android.internal.telephony.CommandException;
@@ -260,11 +258,6 @@ public class NetworkSetting extends PreferenceActivity
     protected void onCreate(Bundle icicle) {
         super.onCreate(icicle);
 
-        ActionBar mActionBar = getActionBar();
-        if (mActionBar != null) {
-            mActionBar.setDisplayHomeAsUpEnabled(true);
-        }
-
         addPreferencesFromResource(R.xml.carrier_select);
 
         int subscription = getIntent().getIntExtra(SUBSCRIPTION_KEY,
@@ -294,15 +287,6 @@ public class NetworkSetting extends PreferenceActivity
                 R.bool.config_disable_data_manual_plmn) && !isMultiSimModeDsda()) {
             mDataManager = new NetworkSettingDataManager(getApplicationContext());
         }
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
-            finish();
-            return true;
-        }
-        return false;
     }
 
     @Override
