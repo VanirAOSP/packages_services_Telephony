@@ -65,6 +65,14 @@
             android:persistent="false"
             android:summary="@string/auto_retry_mode_summary"/>
 
+    <PreferenceScreen
+            android:title="@string/speaker_proximity"
+            android:summary="@string/speaker_proximity_summary">
+        <intent android:targetPackage="net.androcom.dho.speakerproximity"
+                android:action="android.intent.action.MAIN"
+                android:targetClass="net.androcom.dho.speakerproximity.SpeakerProximity" />
+    </PreferenceScreen>
+
     <ListPreference
             android:key="button_tty_mode_key"
             android:title="@string/tty_mode_option_title"
@@ -92,4 +100,12 @@
             android:summary="@string/xdivert_summary"
             android:persistent="false">
     </PreferenceScreen>
+
+    <CheckBoxPreference
+        android:key="button_non_intrusive_incall"
+        android:title="@string/non_intrusive_incall_title"
+        android:summary="@string/non_intrusive_incall_summary"
+        android:persistent="false"
+        android:defaultValue="true" />
+
 </PreferenceScreen>
