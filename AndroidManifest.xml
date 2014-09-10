@@ -344,8 +344,7 @@
              non-voice-capable tablets and regular phone devices. -->
         <activity android:name="MobileNetworkSettings"
             android:label="@string/settings_label"
-            android:icon="@drawable/ic_launcher_phone_settings"
-            android:theme="@style/Theme.DialogWhenLarge">
+            android:theme="@style/Theme.Settings">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <action android:name="android.intent.action.MAIN" />
@@ -366,11 +365,8 @@
 
         <activity android:name="NetworkSetting"
                 android:label="@string/networks"
-                android:icon="@drawable/ic_launcher_phone_settings"
                 android:configChanges="orientation|screenSize|keyboardHidden"
-                android:theme="@style/Theme.Settings"
-                android:parentActivityName="MobileNetworkSettings">
-
+                android:theme="@style/Theme.Settings">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <action android:name="android.settings.NETWORK_OPERATOR_SETTINGS" />
@@ -584,7 +580,6 @@
         <!-- "Call settings" UI, used only on voice-capable phone devices. -->
         <activity android:name="CallFeaturesSetting"
                 android:label="@string/call_settings"
-                android:icon="@mipmap/ic_launcher_phone"
                 android:configChanges="orientation|screenSize|keyboardHidden"
                 android:theme="@style/SettingsLight">
             <intent-filter>
