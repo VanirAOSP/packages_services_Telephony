@@ -158,6 +158,14 @@
   </PreferenceScreen>
 
   <ListPreference
+      android:key="call_recording_format"
+      android:title="@string/call_recording_format"
+      android:summary="%s"
+      android:entries="@array/call_recording_encoder_entries"
+      android:entryValues="@array/call_recording_encoder_values"
+      android:persistent="false" />
+
+  <ListPreference
       android:key="button_incoming_call_style"
       android:title="@string/incoming_call_style_title"
       android:summary="%s"
