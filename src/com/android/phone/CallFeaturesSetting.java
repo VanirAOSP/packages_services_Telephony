@@ -33,7 +33,10 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
+import android.content.res.Resources;
+import android.content.res.Resources.NotFoundException;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteException;
 import android.media.AudioManager;
@@ -284,6 +287,9 @@ public class CallFeaturesSetting extends PreferenceActivity
     // Blacklist support
     private static final String BUTTON_BLACKLIST = "button_blacklist";
 
+    // Call recording format
+    private static final String CALL_RECORDING_FORMAT = "call_recording_format";
+
     private EditPhoneNumberPreference mSubMenuVoicemailSettings;
 
     private Runnable mRingtoneLookupRunnable;
@@ -325,6 +331,7 @@ public class CallFeaturesSetting extends PreferenceActivity
     private CheckBoxPreference mCallEndSound;
     private ListPreference mFlipAction;
     private CheckBoxPreference mButtonProximity;
+    private ListPreference mCallRecordingFormat;
 
     private class VoiceMailProvider {
         public VoiceMailProvider(String name, Intent intent) {
@@ -698,6 +705,11 @@ public class CallFeaturesSetting extends PreferenceActivity
             handleSipCallOptionsChange(objValue);
         }else if (preference == mFlipAction) {
             updateFlipActionSummary((String) objValue);
+        } else if (preference == mCallRecordingFormat) {
+            int value = Integer.valueOf((String) objValue);
+            int index = mCallRecordingFormat.findIndexOfValue((String) objValue);
+            Settings.System.putInt(getContentResolver(), Settings.System.CALL_RECORDING_FORMAT, value);
+            mCallRecordingFormat.setSummary(mCallRecordingFormat.getEntries()[index]);
         }
         // always let the preference setting proceed.
         return true;
@@ -1666,6 +1678,9 @@ public class CallFeaturesSetting extends PreferenceActivity
             mVoicemailNotificationVibrate =
                     (CheckBoxPreference) findPreference(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY);
             initVoiceMailProviders();
+
+        mCallRecordingFormat = (ListPreference) findPreference(CALL_RECORDING_FORMAT);
+
         }
 
         mFlipAction = (ListPreference) findPreference(FLIP_ACTION_KEY);
@@ -1737,6 +1752,13 @@ public class CallFeaturesSetting extends PreferenceActivity
         mCallEndSound = (CheckBoxPreference) findPreference(BUTTON_CALL_END_SOUND_KEY);
         mCallEndSound.setChecked(Settings.System.getInt(getContentResolver(),
                 Settings.System.CALL_END_SOUND, 1) == 0 ? false : true);
+
+        if (mCallRecordingFormat != null) {
+            int format = Settings.System.getInt(getContentResolver(), Settings.System.CALL_RECORDING_FORMAT, 0);
+            mCallRecordingFormat.setValue(String.valueOf(format));
+            mCallRecordingFormat.setSummary(mCallRecordingFormat.getEntry());
+            mCallRecordingFormat.setOnPreferenceChangeListener(this);
+        }
 
         removeOptionalPrefs(prefSet);
         addOptionalPrefs(prefSet);
@@ -2487,6 +2509,25 @@ public class CallFeaturesSetting extends PreferenceActivity
                 Preference fdnButton = preferenceScreen.findPreference(BUTTON_FDN_KEY);
                 if (fdnButton != null && getResources().getBoolean(R.bool.config_fdn_disable))
                     preferenceScreen.removePreference(fdnButton);
+            }
+        }
+
+        // Remove Call recording format preference if it's not enabled
+        boolean recordingEnabled = false;
+        try {
+            PackageManager pm = getPackageManager();
+            String phonePackage = "com.android.dialer";
+            Resources res;
+            res = pm.getResourcesForApplication(phonePackage);
+            int booleanID = res.getIdentifier(phonePackage + ":bool/call_recording_enabled", null, null);
+            recordingEnabled = res.getBoolean(booleanID);
+        } catch (NameNotFoundException ex) {
+            ex.printStackTrace();
+        } catch (NotFoundException ex) {
+            ex.printStackTrace();
+        } finally {
+            if (!recordingEnabled) {
+                preferenceScreen.removePreference(mCallRecordingFormat);
             }
         }
     }
