@@ -16,8 +16,10 @@
 
 package com.android.services.telephony;
 
+import android.content.Intent;
 import android.net.Uri;
 import android.os.AsyncResult;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.telecom.AudioState;
@@ -49,10 +51,15 @@ abstract class TelephonyConnection extends Connection {
     private static final int MSG_DISCONNECT = 4;
     private static final int MSG_PHONE_VP_ON = 6;
     private static final int MSG_PHONE_VP_OFF = 7;
+    private static final int MSG_SUPP_SERVICE_FAILED = 8;
+    private static final String ACTION_SUPP_SERVICE_FAILURE =
+            "org.codeaurora.ACTION_SUPP_SERVICE_FAILURE";
 
     private String[] mSubName = {"SUB 1", "SUB 2", "SUB 3"};
     private String mDisplayName;
     private boolean mVoicePrivacyState = false;
+
+    private static final boolean DBG = false;
 
     private final Handler mHandler = new Handler() {
         @Override
@@ -60,6 +67,7 @@ abstract class TelephonyConnection extends Connection {
             switch (msg.what) {
                 case MSG_PRECISE_CALL_STATE_CHANGED:
                     Log.v(TelephonyConnection.this, "MSG_PRECISE_CALL_STATE_CHANGED");
+                    setExtras();
                     updateState();
                     break;
                 case MSG_HANDOVER_STATE_CHANGED:
@@ -67,10 +75,10 @@ abstract class TelephonyConnection extends Connection {
                     AsyncResult ar = (AsyncResult) msg.obj;
                     com.android.internal.telephony.Connection connection =
                          (com.android.internal.telephony.Connection) ar.result;
-                    if (connection.getState() == mOriginalConnection.getState() ||
-                            (connection.getAddress() != null &&
+                    if ((connection.getAddress() != null &&
                                     mOriginalConnection.getAddress() != null &&
-                            mOriginalConnection.getAddress().contains(connection.getAddress()))) {
+                            mOriginalConnection.getAddress().contains(connection.getAddress())) ||
+                            connection.getStateBeforeHandover() == mOriginalConnection.getState()) {
                         Log.d(TelephonyConnection.this, "SettingOriginalConnection " +
                                 mOriginalConnection.toString() + " with " + connection.toString());
                         setOriginalConnection(connection);
@@ -101,6 +109,16 @@ abstract class TelephonyConnection extends Connection {
                         mVoicePrivacyState = false;
                         updateState();
                     }
+                    break;
+                case MSG_SUPP_SERVICE_FAILED:
+                    Log.d(TelephonyConnection.this, "MSG_SUPP_SERVICE_FAILED");
+                    AsyncResult r = (AsyncResult) msg.obj;
+                    Phone.SuppService service = (Phone.SuppService) r.result;
+                    int val = service.ordinal();
+                    Intent failure = new Intent();
+                    failure.setAction(ACTION_SUPP_SERVICE_FAILURE);
+                    failure.putExtra("supp_serv_failure", val);
+                    TelephonyGlobals.getApplicationContext().sendBroadcast(failure);
                     break;
             }
         }
@@ -169,10 +187,22 @@ abstract class TelephonyConnection extends Connection {
         public void onAudioQualityChanged(int audioQuality) {
             setAudioQuality(audioQuality);
         }
+
+        /**
+         * Used by the {@link com.android.internal.telephony.Connection} to report a change in the
+         * substate of the current call
+         *
+         * @param callSubstate The call substate.
+         */
+        @Override
+        public void onCallSubstateChanged(int callSubstate) {
+            setCallSubstate(callSubstate);
+        }
     };
 
     /* package */ com.android.internal.telephony.Connection mOriginalConnection;
     private Call.State mOriginalConnectionState = Call.State.IDLE;
+    private Bundle mOriginalConnectionExtras;
 
     /**
      * Determines if the {@link TelephonyConnection} has local video capabilities.
@@ -439,6 +469,7 @@ abstract class TelephonyConnection extends Connection {
         getPhone().registerForDisconnect(mHandler, MSG_DISCONNECT, null);
         getPhone().registerForInCallVoicePrivacyOn(mHandler, MSG_PHONE_VP_ON, null);
         getPhone().registerForInCallVoicePrivacyOff(mHandler, MSG_PHONE_VP_OFF, null);
+        getPhone().registerForSuppServiceFailed(mHandler, MSG_SUPP_SERVICE_FAILED, null);
         mOriginalConnection.addPostDialListener(mPostDialListener);
         mOriginalConnection.addListener(mOriginalConnectionListener);
 
@@ -448,6 +479,7 @@ abstract class TelephonyConnection extends Connection {
         setRemoteVideoCapable(mOriginalConnection.isRemoteVideoCapable());
         setVideoProvider(mOriginalConnection.getVideoProvider());
         setAudioQuality(mOriginalConnection.getAudioQuality());
+        setCallSubstate(mOriginalConnection.getCallSubstate());
 
         updateAddress();
     }
@@ -545,6 +577,36 @@ abstract class TelephonyConnection extends Connection {
 
         Log.v(this, "isValidRingingCall, returning true");
         return true;
+    }
+
+    protected void setExtras() {
+        Bundle extras = null;
+        if (mOriginalConnection != null) {
+            extras = mOriginalConnection.getCall().getExtras();
+            if (extras != null) {
+                // Check if extras have changed and need updating.
+                if (!Objects.equals(mOriginalConnectionExtras, extras)) {
+                    if (DBG) {
+                        Log.d(TelephonyConnection.this, "Updating extras:");
+                        for (String key : extras.keySet()) {
+                            Object value = extras.get(key);
+                            if (value instanceof String) {
+                                Log.d(TelephonyConnection.this,
+                                        "setExtras Key=" + key +
+                                                " value=" + (String)value);
+                            }
+                        }
+                    }
+                    mOriginalConnectionExtras = extras;
+                    super.setExtras(extras);
+                } else {
+                    Log.d(TelephonyConnection.this,
+                        "Extras update not required");
+                }
+            } else {
+                Log.d(TelephonyConnection.this, "Null call extras");
+            }
+        }
     }
 
     void updateState() {
@@ -651,6 +713,15 @@ abstract class TelephonyConnection extends Connection {
         } else {
             currentCapabilities = removeCapability(currentCapabilities,
                     PhoneCapabilities.SUPPORTS_VT_LOCAL);
+        }
+        int callState = getState();
+        if (mLocalVideoCapable && mRemoteVideoCapable
+                && (callState == STATE_ACTIVE || callState == STATE_HOLDING)) {
+            currentCapabilities = applyCapability(currentCapabilities,
+                    PhoneCapabilities.CALL_TYPE_MODIFIABLE);
+        } else {
+            currentCapabilities = removeCapability(currentCapabilities,
+                    PhoneCapabilities.CALL_TYPE_MODIFIABLE);
         }
         return currentCapabilities;
     }
