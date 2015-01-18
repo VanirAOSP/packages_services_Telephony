@@ -280,15 +280,7 @@
     <!-- Call settings: title of the dialog that lets you select contacts from the SIM. -->
     <string name="simContacts_title_cm">Manage SIM card contacts</string>
 
-    <!-- Call settings: title of the dialog shown for SIM contact related operations. -->
-    <string name="Result_title">Result...</string>
-
     <string name="ringtone_title">Phone ringtone</string>
-
-    <!-- Shown in "Managed Roaming" dialog when registration is denied with rejCode 10. -->
-    <string name="managed_roaming_title">Managed Roaming</string>
-    <string name="managed_roaming_title_sub">Managed Roaming (SIM <xliff:g id="index" example="1">%d</xliff:g>)</string>
-    <string name="managed_roaming_dialog_content">Network with Limited Service found. Do you want to initiate a Network Search?</string>
 
     <!-- Sim contacts management -->
     <string name="contactScreen"> Add/Edit SIM Contact</string>
