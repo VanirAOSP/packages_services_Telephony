@@ -1,12 +1,17 @@
 package com.android.phone;
 
 import android.app.ActionBar;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.preference.Preference;
 import android.preference.PreferenceScreen;
+import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.MenuItem;
+
+import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.PhoneFactory;
 
 import java.util.ArrayList;
 
@@ -17,9 +22,11 @@ public class GsmUmtsAdditionalCallOptions extends
 
     private static final String BUTTON_CLIR_KEY  = "button_clir_key";
     private static final String BUTTON_CW_KEY    = "button_cw_key";
+    private static final String BUTTON_PN_KEY    = "button_pn_key";
 
     private CLIRListPreference mCLIRButton;
     private CallWaitingCheckBoxPreference mCWButton;
+    private MSISDNEditPreference mMSISDNButton;
 
     private final ArrayList<Preference> mPreferences = new ArrayList<Preference>();
     private int mInitIndex= 0;
@@ -38,6 +45,7 @@ public class GsmUmtsAdditionalCallOptions extends
 
         mPreferences.add(mCLIRButton);
         mPreferences.add(mCWButton);
+        mPreferences.add(mMSISDNButton);
 
         if (icicle == null) {
             if (DBG) Log.d(LOG_TAG, "start to init ");
@@ -45,8 +53,11 @@ public class GsmUmtsAdditionalCallOptions extends
         } else {
             if (DBG) Log.d(LOG_TAG, "restore stored states");
             mInitIndex = mPreferences.size();
+
             mCLIRButton.init(this, true, mPhoneId);
             mCWButton.init(this, true, mPhoneId);
+            mMSISDNButton.init(this, true, mPhoneId);
+
             int[] clirArray = icicle.getIntArray(mCLIRButton.getKey());
             if (clirArray != null) {
                 if (DBG) Log.d(LOG_TAG, "onCreate:  clirArray[0]="
@@ -80,6 +91,8 @@ public class GsmUmtsAdditionalCallOptions extends
             Preference pref = mPreferences.get(mInitIndex);
             if (pref instanceof CallWaitingCheckBoxPreference) {
                 ((CallWaitingCheckBoxPreference) pref).init(this, false, mPhoneId);
+            } else if (pref instanceof MSISDNEditPreference) {
+                ((MSISDNEditPreference) pref).init(this, false, mPhoneId);
             }
         }
         super.onFinished(preference, reading);
