@@ -20,7 +20,6 @@ import android.os.Handler;
 import android.os.Message;
 
 import android.provider.Settings;
-import android.telecom.PhoneCapabilities;
 import android.telephony.DisconnectCause;
 import android.telephony.PhoneNumberUtils;
 
@@ -66,7 +65,6 @@ final class CdmaConnection extends TelephonyConnection {
      * {@code True} if the CDMA connection should allow mute.
      */
     private final boolean mAllowMute;
-    private final boolean mIsOutgoing;
     // Queue of pending short-DTMF characters.
     private final Queue<Character> mDtmfQueue = new LinkedList<>();
     private final EmergencyTonePlayer mEmergencyTonePlayer;
@@ -88,6 +86,22 @@ final class CdmaConnection extends TelephonyConnection {
         boolean isImsCall = getOriginalConnection() instanceof ImsPhoneConnection;
         // Start call waiting timer for CDMA waiting call.
         if (mIsCallWaiting && !isImsCall) {
+            startCallWaitingTimer();
+        }
+    }
+
+    CdmaConnection(
+            Connection connection,
+            EmergencyTonePlayer emergencyTonePlayer,
+            boolean allowMute,
+            boolean isOutgoing,
+            Call.State state) {
+        super(connection, state);
+        mEmergencyTonePlayer = emergencyTonePlayer;
+        mAllowMute = allowMute;
+        mIsOutgoing = isOutgoing;
+        mIsCallWaiting = connection != null && connection.getState() == Call.State.WAITING;
+        if (mIsCallWaiting) {
             startCallWaitingTimer();
         }
     }
@@ -146,6 +160,21 @@ final class CdmaConnection extends TelephonyConnection {
         super.onAnswer();
     }
 
+    /**
+     * Clones the current {@link CdmaConnection}.
+     * <p>
+     * Listeners are not copied to the new instance.
+     *
+     * @return The cloned connection.
+     */
+    @Override
+    public TelephonyConnection cloneConnection() {
+        CdmaConnection cdmaConnection = new CdmaConnection(getOriginalConnection(),
+                mEmergencyTonePlayer, mAllowMute, mIsOutgoing,
+                getOriginalConnectionState());
+        return cdmaConnection;
+    }
+
     @Override
     public void onStateChanged(int state) {
         Connection originalConnection = getOriginalConnection();
@@ -153,24 +182,35 @@ final class CdmaConnection extends TelephonyConnection {
                 originalConnection.getState() == Call.State.WAITING;
 
         if (state == android.telecom.Connection.STATE_DIALING) {
-            if (isEmergency()) {
+            if (isEmergency() && mEmergencyTonePlayer != null) {
                 mEmergencyTonePlayer.start();
             }
         } else {
             // No need to check if it is an emergency call, since it is a no-op if it isn't started.
-            mEmergencyTonePlayer.stop();
+            if (mEmergencyTonePlayer != null) {
+                mEmergencyTonePlayer.stop();
+            }
         }
 
         super.onStateChanged(state);
     }
 
     @Override
-    protected int buildCallCapabilities() {
-        int capabilities = 0;
+    protected int buildConnectionCapabilities() {
+        int capabilities = super.buildConnectionCapabilities();
         if (mAllowMute) {
-            capabilities = PhoneCapabilities.MUTE;
+            capabilities |= CAPABILITY_MUTE;
         }
         return capabilities;
+    }
+
+    @Override
+    public void performConference(TelephonyConnection otherConnection) {
+        if (isImsConnection()) {
+            super.performConference(otherConnection);
+        } else {
+            Log.w(this, "Non-IMS CDMA Connection attempted to call performConference.");
+        }
     }
 
     void forceAsDialing(boolean isDialing) {
@@ -179,10 +219,6 @@ final class CdmaConnection extends TelephonyConnection {
         } else {
             updateState();
         }
-    }
-
-    boolean isOutgoing() {
-        return mIsOutgoing;
     }
 
     boolean isCallWaiting() {
@@ -215,6 +251,10 @@ final class CdmaConnection extends TelephonyConnection {
      * Read the settings to determine which type of DTMF method this CDMA phone calls.
      */
     private boolean useBurstDtmf() {
+        if (isImsConnection()) {
+            Log.d(this,"in ims call, return false");
+            return false;
+        }
         int dtmfTypeSetting = Settings.System.getInt(
                 getPhone().getContext().getContentResolver(),
                 Settings.System.DTMF_TONE_TYPE_WHEN_DIALING,

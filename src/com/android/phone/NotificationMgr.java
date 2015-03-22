@@ -462,7 +462,11 @@ public class NotificationMgr {
 
             List<UserInfo> users = mUserManager.getUsers(true);
             for (int i = 0; i < users.size(); i++) {
-                UserHandle userHandle = users.get(i).getUserHandle();
+                final UserInfo user = users.get(i);
+                if (user.isManagedProfile()) {
+                    continue;
+                }
+                UserHandle userHandle = user.getUserHandle();
                 builder.setContentIntent(userHandle.isOwner() ? contentIntent : null);
                     mNotificationManager.notifyAsUser(
                             null /* tag */, notificationId, builder.build(), userHandle);
@@ -495,7 +499,11 @@ public class NotificationMgr {
 
         List<UserInfo> users = mUserManager.getUsers(true);
         for (int i = 0; i < users.size(); i++) {
-            UserHandle userHandle = users.get(i).getUserHandle();
+            final UserInfo user = users.get(i);
+            if (user.isManagedProfile()) {
+                continue;
+            }
+            UserHandle userHandle = user.getUserHandle();
             builder.setContentIntent(userHandle.isOwner() ? contentIntent : null);
             final Notification notif =
                     new Notification.BigTextStyle(builder).bigText(contentText).build();
@@ -519,7 +527,7 @@ public class NotificationMgr {
     private void showNetworkSelection(String operator, Phone phone) {
         if (DBG) log("showNetworkSelection(" + operator + ")...");
 
-        long subId = phone.getSubId();
+        int subId = phone.getSubId();
         Notification.Builder builder = new Notification.Builder(mContext)
                 .setSmallIcon(android.R.drawable.stat_sys_warning)
                 .setContentTitle(mContext.getString(R.string.notification_network_selection_title))
@@ -545,7 +553,11 @@ public class NotificationMgr {
                 PendingIntent.FLAG_UPDATE_CURRENT);
         List<UserInfo> users = mUserManager.getUsers(true);
         for (int i = 0; i < users.size(); i++) {
-            UserHandle userHandle = users.get(i).getUserHandle();
+            final UserInfo user = users.get(i);
+            if (user.isManagedProfile()) {
+                continue;
+            }
+            UserHandle userHandle = user.getUserHandle();
             builder.setContentIntent(userHandle.isOwner() ? contentIntent : null);
             mNotificationManager.notifyAsUser(
                     null /* tag */,

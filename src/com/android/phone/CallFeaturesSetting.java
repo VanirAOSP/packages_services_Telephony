@@ -57,6 +57,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.ListAdapter;
+import android.widget.Toast;
 
 import com.android.internal.telephony.CallForwardInfo;
 import com.android.internal.telephony.CommandsInterface;
@@ -1562,6 +1563,16 @@ public class CallFeaturesSetting extends PreferenceActivity
     @Override
     protected void onCreate(Bundle icicle) {
         super.onCreate(icicle);
+        if (DBG) log("onCreate: Intent is " + getIntent());
+
+        // Make sure we are running as the primary user.
+        if (UserHandle.myUserId() != UserHandle.USER_OWNER) {
+            Toast.makeText(this, R.string.call_settings_primary_user_only,
+                    Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
         mPhone = PhoneGlobals.getPhone();
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
@@ -1587,8 +1598,8 @@ public class CallFeaturesSetting extends PreferenceActivity
         // Show the voicemail preference in onResume if the calling intent specifies the
         // ACTION_ADD_VOICEMAIL action.
         mShowVoicemailPreference = (icicle == null) &&
-                getIntent().getAction().equals(ACTION_ADD_VOICEMAIL);
-    }
+                TextUtils.equals(getIntent().getAction(), ACTION_ADD_VOICEMAIL);
+   }
 
     private void initPhoneAccountPreferences() {
         mPhoneAccountSettingsPreference = findPreference(PHONE_ACCOUNT_SETTINGS_KEY);
@@ -1738,20 +1749,29 @@ public class CallFeaturesSetting extends PreferenceActivity
             }
 
             int phoneType = mPhone.getPhoneType();
-            if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
-                Preference fdnButton = prefSet.findPreference(BUTTON_FDN_KEY);
-                if (fdnButton != null) {
-                    prefSet.removePreference(fdnButton);
-                }
-                if (!getResources().getBoolean(R.bool.config_voice_privacy_disable)) {
-                    addPreferencesFromResource(R.xml.cdma_call_privacy);
-                }
-            } else if (phoneType == PhoneConstants.PHONE_TYPE_GSM) {
-                if (getResources().getBoolean(R.bool.config_additional_call_setting)) {
-                    addPreferencesFromResource(R.xml.gsm_umts_call_options);
+            Preference fdnButton = prefSet.findPreference(BUTTON_FDN_KEY);
+            boolean shouldHideCarrierSettings = Settings.Global.getInt(
+                    getContentResolver(), Settings.Global.HIDE_CARRIER_NETWORK_SETTINGS, 0) == 1;
+            if (shouldHideCarrierSettings) {
+                prefSet.removePreference(fdnButton);
+                if (mButtonDTMF != null) {
+                    prefSet.removePreference(mButtonDTMF);
                 }
             } else {
-                throw new IllegalStateException("Unexpected phone type: " + phoneType);
+                if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
+                    if (fdnButton != null) {
+                        prefSet.removePreference(fdnButton);
+                    }
+                    if (!getResources().getBoolean(R.bool.config_voice_privacy_disable)) {
+                        addPreferencesFromResource(R.xml.cdma_call_privacy);
+                    }
+                } else if (phoneType == PhoneConstants.PHONE_TYPE_GSM) {
+                    if (getResources().getBoolean(R.bool.config_additional_call_setting)) {
+                        addPreferencesFromResource(R.xml.gsm_umts_call_options);
+                    }
+                } else {
+                    throw new IllegalStateException("Unexpected phone type: " + phoneType);
+                }
             }
         }
 
@@ -1858,13 +1878,30 @@ public class CallFeaturesSetting extends PreferenceActivity
     public static boolean migrateVoicemailVibrationSettingsIfNeeded(SharedPreferences prefs,
             int phoneId) {
         if (!prefs.contains(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY + phoneId)) {
-            String vibrateWhen = prefs.getString(
-                    BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_WHEN_KEY + phoneId,
-                    VOICEMAIL_VIBRATION_NEVER);
-            // If vibrateWhen is always, then voicemailVibrate should be True.
-            // otherwise if vibrateWhen is "only in silent mode", or "never", then
-            // voicemailVibrate = False.
-            boolean voicemailVibrate = vibrateWhen.equals(VOICEMAIL_VIBRATION_ALWAYS);
+            boolean voicemailVibrate = false;
+            // If phoneId based setting is not found, try without phoneId.
+            if (!prefs.contains(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY)) {
+                String vibrateWhen = VOICEMAIL_VIBRATION_NEVER;
+                // If BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY is not found,
+                // try BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_WHEN_KEY with and without phoneId.
+                if (!prefs.contains(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_WHEN_KEY + phoneId)) {
+                    vibrateWhen = prefs.getString(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_WHEN_KEY,
+                            VOICEMAIL_VIBRATION_NEVER);
+                } else {
+                    vibrateWhen = prefs.getString(
+                            BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_WHEN_KEY + phoneId,
+                            VOICEMAIL_VIBRATION_NEVER);
+                }
+                // If vibrateWhen is always, then voicemailVibrate should be True.
+                // otherwise if vibrateWhen is "only in silent mode", or "never", then
+                // voicemailVibrate = False.
+                voicemailVibrate = vibrateWhen.equals(VOICEMAIL_VIBRATION_ALWAYS);
+            } else {
+                voicemailVibrate = prefs.getBoolean(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY,
+                        false);
+            }
+
+            // Save the vibrate setting in phoneId based BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY
             final SharedPreferences.Editor editor = prefs.edit();
             editor.putBoolean(BUTTON_VOICEMAIL_NOTIFICATION_VIBRATE_KEY + phoneId,
                     voicemailVibrate);

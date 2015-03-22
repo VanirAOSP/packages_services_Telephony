@@ -52,12 +52,16 @@ import com.android.internal.telephony.MmiCode;
 import com.android.internal.telephony.Phone;
 import com.android.internal.telephony.PhoneConstants;
 import com.android.internal.telephony.PhoneFactory;
+import com.android.internal.telephony.SubscriptionController;
 import com.android.internal.telephony.PhoneProxy;
 import com.android.internal.telephony.TelephonyCapabilities;
 import com.android.internal.telephony.TelephonyIntents;
 import com.android.internal.telephony.util.BlacklistUtils;
 import com.android.phone.common.CallLogAsync;
 import com.android.server.sip.SipService;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Global state for the telephony subsystem when running in the primary
@@ -161,6 +165,7 @@ public class PhoneGlobals extends ContextWrapper {
 
     // True if we are beginning a call, but the phone state has not changed yet
     private boolean mBeginningCall;
+    private boolean mDataDisconnectedDueToRoaming = false;
 
     // Last phone state seen by updatePhoneState()
     private PhoneConstants.State mLastPhoneState = PhoneConstants.State.IDLE;
@@ -352,6 +357,8 @@ public class PhoneGlobals extends ContextWrapper {
 
             mHandler.sendEmptyMessage(EVENT_START_SIP_SERVICE);
 
+            startImsService();
+
             int phoneType = phone.getPhoneType();
 
             if (phoneType == PhoneConstants.PHONE_TYPE_CDMA) {
@@ -490,7 +497,8 @@ public class PhoneGlobals extends ContextWrapper {
     }
 
     /**
-     * Returns the Phone associated with this instance
+     * Returns the Phone associated with this instance.
+     * WARNING: This method should be used carefully, now that there may be multiple phones.
      */
     static Phone getPhone() {
         return getInstance().phone;
@@ -502,6 +510,19 @@ public class PhoneGlobals extends ContextWrapper {
         } else {
             return getPhone();
         }
+    }
+
+    /**
+     * Returns a list of the currently active phones for the Telephony package.
+     */
+    public static List<Phone> getPhones() {
+        int[] subIds = SubscriptionController.getInstance().getActiveSubIdList();
+        List<Phone> phones = new ArrayList<Phone>(subIds.length);
+
+        for (int i = 0; i < subIds.length; i++) {
+            phones.add(PhoneFactory.getPhone(SubscriptionManager.getPhoneId(subIds[i])));
+        }
+        return phones;
     }
 
     /* package */ BluetoothManager getBluetoothManager() {
@@ -799,7 +820,7 @@ public class PhoneGlobals extends ContextWrapper {
     private class PhoneAppBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            long subId = intent.getLongExtra(PhoneConstants.SUBSCRIPTION_KEY,
+            int subId = intent.getIntExtra(PhoneConstants.SUBSCRIPTION_KEY,
                     SubscriptionManager.getDefaultSubId());
             String action = intent.getAction();
             if (action.equals(Intent.ACTION_AIRPLANE_MODE_CHANGED)) {
@@ -822,9 +843,11 @@ public class PhoneGlobals extends ContextWrapper {
                         && "DISCONNECTED".equals(intent.getStringExtra(PhoneConstants.STATE_KEY))
                         && Phone.REASON_ROAMING_ON.equals(
                             intent.getStringExtra(PhoneConstants.STATE_CHANGE_REASON_KEY));
-                mHandler.sendEmptyMessage(disconnectedDueToRoaming
-                                          ? EVENT_DATA_ROAMING_DISCONNECTED
-                                          : EVENT_DATA_ROAMING_OK);
+                if (mDataDisconnectedDueToRoaming != disconnectedDueToRoaming) {
+                    mDataDisconnectedDueToRoaming = disconnectedDueToRoaming;
+                    mHandler.sendEmptyMessage(disconnectedDueToRoaming
+                            ? EVENT_DATA_ROAMING_DISCONNECTED : EVENT_DATA_ROAMING_OK);
+                }
             } else if ((action.equals(TelephonyIntents.ACTION_SIM_STATE_CHANGED)) &&
                     (mPUKEntryActivity != null)) {
                 // if an attempt to un-PUK-lock the device was made, while we're
@@ -891,7 +914,7 @@ public class PhoneGlobals extends ContextWrapper {
         }
     }
 
-    private void handleServiceStateChanged(Intent intent, long subId) {
+    private void handleServiceStateChanged(Intent intent, int subId) {
         /**
          * This used to handle updating EriTextWidgetProvider this routine
          * and and listening for ACTION_SERVICE_STATE_CHANGED intents could
@@ -943,6 +966,17 @@ public class PhoneGlobals extends ContextWrapper {
         return phoneInEcm;
     }
 
+    private void startImsService() {
+        Log.d(LOG_TAG, "startImsService");
+        try {
+            Intent intent = new Intent();
+            intent.setClassName(IMS_SERVICE_PKG_NAME, IMS_SERVICE_CLASS_NAME);
+            startService(intent);
+        } catch(SecurityException ex) {
+            Log.w(LOG_TAG, "startImsService: exception = " + ex);
+        }
+    }
+
     /**
      * "Call origin" may be used by Contacts app to specify where the phone call comes from.
      * Currently, the only permitted value for this extra is {@link #ALLOWED_EXTRA_CALL_ORIGIN}.
@@ -960,4 +994,6 @@ public class PhoneGlobals extends ContextWrapper {
      * Used to determine if the preserved call origin is fresh enough.
      */
     private static final long CALL_ORIGIN_EXPIRATION_MILLIS = 30 * 1000;
+    private static final String IMS_SERVICE_PKG_NAME = "org.codeaurora.ims";
+    private static final String IMS_SERVICE_CLASS_NAME = "org.codeaurora.ims.ImsService";
 }

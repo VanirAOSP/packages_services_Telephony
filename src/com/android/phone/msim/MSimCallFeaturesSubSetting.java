@@ -272,7 +272,7 @@ public class MSimCallFeaturesSubSetting extends PreferenceActivity
     private Preference mVoicemailNotificationRingtone;
     private SwitchPreference mVoicemailNotificationVibrate;
 
-    private long mSubId;
+    private int mSubId;
     private int mSlotId;
 
     private class VoiceMailProvider {
