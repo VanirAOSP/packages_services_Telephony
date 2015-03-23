@@ -309,17 +309,6 @@ abstract class TelephonyConnection extends Connection {
         public void onConferenceParticipantsChanged(List<ConferenceParticipant> participants) {
             mHandler.obtainMessage(MSG_SET_CONFERENCE_PARTICIPANTS, participants).sendToTarget();
         }
-
-        /**
-         * Used by the {@link com.android.internal.telephony.Connection} to report a change in the
-         * substate of the current call
-         *
-         * @param callSubstate The call substate.
-         */
-        @Override
-        public void onCallSubstateChanged(int callSubstate) {
-            setCallSubstate(callSubstate);
-        }
     };
 
     /* package */ com.android.internal.telephony.Connection mOriginalConnection;
@@ -1081,15 +1070,6 @@ protected final void updateCallCapabilities() {
         } else {
             currentCapabilities = removeCapability(currentCapabilities,
                     CAPABILITY_SUPPORTS_VT_LOCAL);
-        }
-        int callState = getState();
-        if (mLocalVideoCapable && mRemoteVideoCapable
-                && (callState == STATE_ACTIVE || callState == STATE_HOLDING)) {
-            currentCapabilities = applyCapability(currentCapabilities,
-                    PhoneCapabilities.CALL_TYPE_MODIFIABLE);
-        } else {
-            currentCapabilities = removeCapability(currentCapabilities,
-                    PhoneCapabilities.CALL_TYPE_MODIFIABLE);
         }
         int callState = getState();
         if (mLocalVideoCapable && mRemoteVideoCapable

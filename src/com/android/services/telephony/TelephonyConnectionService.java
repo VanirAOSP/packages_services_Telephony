@@ -484,7 +484,6 @@ public class TelephonyConnectionService extends ConnectionService {
             boolean isOutgoing, Bundle extras) {
         TelephonyConnection returnConnection = null;
         int phoneType = phone.getPhoneType();
-        int phoneId = phone.getPhoneId();
         if (phoneType == TelephonyManager.PHONE_TYPE_GSM) {
             boolean isForwarded = extras != null
                     && extras.getBoolean(TelephonyManager.EXTRA_IS_FORWARDED, false);
