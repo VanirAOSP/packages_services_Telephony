@@ -106,10 +106,12 @@ abstract class TelephonyConnection extends Connection {
                     AsyncResult ar = (AsyncResult) msg.obj;
                     com.android.internal.telephony.Connection connection =
                          (com.android.internal.telephony.Connection) ar.result;
-                    if ((connection.getAddress() != null &&
-                                    mOriginalConnection.getAddress() != null &&
+                    if ((mOriginalConnection != null && connection != null) &&
+                            ((connection.getAddress() != null &&
+                            mOriginalConnection.getAddress() != null &&
                             mOriginalConnection.getAddress().contains(connection.getAddress())) ||
-                            mOriginalConnection.getStateBeforeHandover() == connection.getState()) {
+                            mOriginalConnection.getStateBeforeHandover()
+                            == connection.getState())) {
                         Log.d(TelephonyConnection.this, "SettingOriginalConnection " +
                                 mOriginalConnection.toString() + " with " + connection.toString());
                         setOriginalConnection(connection);
@@ -578,6 +580,20 @@ abstract class TelephonyConnection extends Connection {
         }
     }
 
+    public void performAddParticipant(String participant) {
+        Log.d(this, "performAddParticipant - %s", participant);
+        if (getPhone() != null) {
+            try {
+                // We should send AddParticipant request using connection.
+                // Basically, you can make call to conference with AddParticipant
+                // request on single normal call.
+                getPhone().addParticipant(participant);
+            } catch (CallStateException e) {
+                Log.e(this, e, "Failed to performAddParticipant.");
+            }
+        }
+    }
+
     /**
      * Builds call capabilities common to all TelephonyConnections. Namely, apply IMS-based
      * capabilities.
@@ -686,7 +702,9 @@ abstract class TelephonyConnection extends Connection {
 
         // Set video state and capabilities
         setVideoState(mOriginalConnection.getVideoState());
-        updateState();
+        if (mOriginalConnection.isAlive()) {
+            updateState();
+        }
         setLocalVideoCapable(mOriginalConnection.isLocalVideoCapable());
         setRemoteVideoCapable(mOriginalConnection.isRemoteVideoCapable());
         setVideoProvider(mOriginalConnection.getVideoProvider());
