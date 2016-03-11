@@ -455,21 +455,19 @@ final class TelecomAccountRegistry {
         Phone[] phones = PhoneFactory.getPhones();
         Log.d(this, "Found %d phones.  Attempting to register.", phones.length);
 
-        // states we are interested in from what
-        // IExtTelephony.getCurrentUiccCardProvisioningStatus()can return
-        final int PROVISIONED = 1;
-        final int INVALID_STATE = -1;
-
         final boolean phoneAccountsEnabled = mContext.getResources().getBoolean(
                 R.bool.config_pstn_phone_accounts_enabled);
 
         if (phoneAccountsEnabled) {
+            // states we are interested in from what
+            // IExtTelephony.getCurrentUiccCardProvisioningStatus()can return
+            final int PROVISIONED = 1;
+            final int INVALID_STATE = -1;
 
-        IExtTelephony mExtTelephony =
-            IExtTelephony.Stub.asInterface(ServiceManager.getService("extphone"));
+            IExtTelephony mExtTelephony =
+                IExtTelephony.Stub.asInterface(ServiceManager.getService("extphone"));
 
             for (Phone phone : phones) {
-                int subscriptionId = phone.getSubId();
                 int provisionStatus = PROVISIONED;
                 int subscriptionId = phone.getSubId();
 

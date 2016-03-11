@@ -498,7 +498,7 @@ public class NotificationMgr {
                             isSettingsIntent)) {
                         mNotificationManager.notifyAsUser(
                                 Integer.toString(subId) /* tag */,
-                            notificationId,
+                                VOICEMAIL_NOTIFICATION,
                                 notification,
                                 userHandle);
                     }
@@ -508,10 +508,19 @@ public class NotificationMgr {
             if (!sendNotificationCustomComponent(0, null, null, false)) {
                 mNotificationManager.cancelAsUser(
                         Integer.toString(subId) /* tag */,
-                        notificationId,
+                        VOICEMAIL_NOTIFICATION,
                         UserHandle.ALL);
             }
         }
+    }
+
+    private boolean showSimSlotIcon() {
+        final List<SubscriptionInfo> subInfoList =
+                SubscriptionManager.from(mContext).getActiveSubscriptionInfoList();
+        if (subInfoList == null) {
+            return false;
+        }
+        return subInfoList.size() > 1;
     }
 
     /**
@@ -560,15 +569,6 @@ public class NotificationMgr {
         }
 
         return false;
-    }
-
-    private boolean showSimSlotIcon() {
-        final List<SubscriptionInfo> subInfoList =
-                SubscriptionManager.from(mContext).getActiveSubscriptionInfoList();
-        if (subInfoList == null) {
-            return false;
-        }
-        return subInfoList.size() > 1;
     }
 
     /**
