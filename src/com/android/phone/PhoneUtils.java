@@ -81,14 +81,6 @@ public class PhoneUtils {
     private static final String LOG_TAG = "PhoneUtils";
     private static final boolean DBG = (PhoneGlobals.DBG_LEVEL >= 2);
 
-    /**
--     * Theme to use for dialogs displayed by utility methods in this class. This is needed
--     * because these dialogs are displayed using the application context, which does not resolve
--     * the dialog theme correctly.
--     */
-    //TODO styles.xml
-    private static final int THEME = AlertDialog.THEME_DEVICE_DEFAULT_LIGHT;
-
     // Do not check in with VDBG = true, since that may write PII to the system log.
     private static final boolean VDBG = false;
 
