@@ -218,4 +218,19 @@
 
     <!-- Whether the emergency only account can make emergency calls -->
     <bool name="config_pstnCanPlaceEmergencyCalls">true</bool>
+
+    <!-- To disable/enable CallForwardUnconditional Timer -->
+    <bool name="config_enable_cfu_time">false</bool>
+
+    <!-- enable network checking for ut interface-->
+    <bool name="check_mobile_data_for_cf">false</bool>
+    <!-- Config to show/hide toast for ims srvcc -->
+    <bool name="config_show_srvcc_toast">false</bool>
+
+    <!-- Flag indicating if SIP settings ennbled -->
+    <bool name="sip_settings_on">true</bool>
+
+    <!-- If false, removes the X-Divert option from Call Settings -->
+    <bool name="config_xdivert_enable">true</bool>
+
 </resources>
