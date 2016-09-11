@@ -23,7 +23,9 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
 
+import com.android.internal.telephony.CallManager;
 import com.android.internal.telephony.Phone;
+import com.android.internal.telephony.PhoneConstants;
 import com.android.phone.Constants;
 import com.android.phone.PhoneUtils;
 import com.android.phone.R;
@@ -48,15 +50,13 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
     private static final String DEFAULT_OUTGOING_ACCOUNT_KEY = "default_outgoing_account";
     private static final String ALL_CALLING_ACCOUNTS_KEY = "phone_account_all_calling_accounts";
 
-    private static final String BUTTON_SMART_DIVERT_KEY = "button_smart_divert";
+    private static final String INCALL_CATEGORY_KEY = "incall_screen_category_key";
+    private static final String SHOW_SSN_PREF_KEY = "button_show_ssn_key";
 
     private static final String SIP_SETTINGS_CATEGORY_PREF_KEY =
             "phone_accounts_sip_settings_category_key";
     private static final String USE_SIP_PREF_KEY = "use_sip_calling_options_key";
     private static final String SIP_RECEIVE_CALLS_PREF_KEY = "sip_receive_calls_key";
-
-    private static final String SHOW_DURATION_KEY = "duration_enable_key";
-    private static final String BUTTON_VIBRATE_CONNECTED_KEY = "button_vibrate_after_connected";
 
     private static final String LEGACY_ACTION_CONFIGURE_PHONE_ACCOUNT =
             "android.telecom.action.CONNECTION_SERVICE_CONFIGURE";
@@ -74,6 +74,7 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
     private TelecomManager mTelecomManager;
     private TelephonyManager mTelephonyManager;
     private SubscriptionManager mSubscriptionManager;
+    private boolean mHasGsmPhone;
 
     private PreferenceCategory mAccountList;
 
@@ -82,8 +83,6 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
     private ListPreference mUseSipCalling;
     private CheckBoxPreference mSipReceiveCallsPreference;
     private SipPreferences mSipPreferences;
-    private CheckBoxPreference mShowDurationCheckBox;
-    private CheckBoxPreference mVibrateAfterConnected;
 
     @Override
     public void onCreate(Bundle icicle) {
@@ -92,6 +91,14 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
         mTelecomManager = TelecomManager.from(getActivity());
         mTelephonyManager = TelephonyManager.from(getActivity());
         mSubscriptionManager = SubscriptionManager.from(getActivity());
+
+        mHasGsmPhone = false;
+        for (Phone phone : CallManager.getInstance().getAllPhones()) {
+            if (phone.getPhoneType() == PhoneConstants.PHONE_TYPE_GSM) {
+                mHasGsmPhone = true;
+                break;
+            }
+        }
     }
 
     @Override
@@ -160,19 +167,6 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
             getPreferenceScreen().removePreference(mAccountList);
         }
 
-        if ((TelephonyManager.getDefault().getMultiSimConfiguration() !=
-                 TelephonyManager.MultiSimVariants.DSDS) ||
-                (!getResources().getBoolean(R.bool.config_xdivert_enable))) {
-            Preference mSmartDivertPref = getPreferenceScreen()
-                .findPreference(BUTTON_SMART_DIVERT_KEY);
-            if (mSmartDivertPref != null) {
-                Log.d(LOG_TAG, "Remove smart divert preference: ");
-                PreferenceCategory prefs = (PreferenceCategory) getPreferenceScreen().findPreference
-                    (ACCOUNTS_LIST_CATEGORY_KEY);
-                prefs.removePreference(mSmartDivertPref);
-            }
-        }
-
         if (isPrimaryUser() && SipUtil.isVoipSupported(getActivity()) && getResources().getBoolean(
                 R.bool.sip_settings_on)) {
             mSipPreferences = new SipPreferences(getActivity());
@@ -207,22 +201,14 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
                     getPreferenceScreen().findPreference(SIP_SETTINGS_CATEGORY_PREF_KEY));
         }
 
-        mShowDurationCheckBox = (CheckBoxPreference) findPreference(SHOW_DURATION_KEY);
-        if (mShowDurationCheckBox != null) {
-            mShowDurationCheckBox.setOnPreferenceChangeListener(this);
-            boolean checked = Settings.System.getInt(getContext().getContentResolver(),
-                    Constants.SETTINGS_SHOW_CALL_DURATION, 1) == 1;
-                    mShowDurationCheckBox.setChecked(checked);
-                    mShowDurationCheckBox.setSummary(checked ? R.string.duration_enable_summary
-                            : R.string.duration_disable_summary);
-        }
+        if (!mHasGsmPhone) {
+            PreferenceCategory incallSettings = (PreferenceCategory)
+                    getPreferenceScreen().findPreference(INCALL_CATEGORY_KEY);
 
-        mVibrateAfterConnected = (CheckBoxPreference) findPreference(BUTTON_VIBRATE_CONNECTED_KEY);
-        if (mVibrateAfterConnected != null) {
-            mVibrateAfterConnected.setOnPreferenceChangeListener(this);
-            boolean checked = Settings.System.getInt(getContext().getContentResolver(),
-                    Constants.SETTINGS_VIBRATE_WHEN_ACCEPTED, 1) == 1;
-            mVibrateAfterConnected.setChecked(checked);
+            incallSettings.removePreference(incallSettings.findPreference(SHOW_SSN_PREF_KEY));
+            if (incallSettings.getPreferenceCount() == 0) {
+                getPreferenceScreen().removePreference(incallSettings);
+            }
         }
     }
 
@@ -248,18 +234,6 @@ public class PhoneAccountSettingsFragment extends PreferenceFragment
                     handleSipReceiveCallsOption(isEnabled);
                 }
             }).start();
-            return true;
-        } else if (pref == mShowDurationCheckBox) {
-            boolean checked = (Boolean) objValue;
-            Settings.System.putInt(getContext().getContentResolver(),
-                    Constants.SETTINGS_SHOW_CALL_DURATION, checked ? 1 : 0);
-            mShowDurationCheckBox.setSummary(checked ? R.string.duration_enable_summary
-                    : R.string.duration_disable_summary);
-            return true;
-        } else if (pref == mVibrateAfterConnected) {
-            boolean doVibrate = (Boolean) objValue;
-            Settings.System.putInt(getContext().getContentResolver(),
-                    Constants.SETTINGS_VIBRATE_WHEN_ACCEPTED, doVibrate ? 1 : 0);
             return true;
         }
         return false;

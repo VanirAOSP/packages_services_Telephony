@@ -40,33 +40,6 @@
                 android:targetClass="com.android.server.telecom.settings.EnableAccountPreferenceActivity" />
         </PreferenceScreen>
 
-        <PreferenceScreen
-          android:key="button_smart_divert"
-          android:title="@string/smart_divert_title"
-          android:summary="@string/smart_divert_summary"
-          android:persistent="false"
-          android:order="1500">
-          <intent android:action="android.intent.action.MAIN"
-             android:targetPackage="com.qti.xdivert"
-             android:targetClass="com.qti.xdivert.XDivertSetting" />
-        </PreferenceScreen>
-
-        <CheckBoxPreference
-            android:key="duration_enable_key"
-            android:persistent="false"
-            android:title="@string/preferred_duration_title"
-            android:summaryOn="@string/duration_enable_summary"
-            android:summaryOff="@string/duration_disable_summary"
-            android:order="1100" />
-
-        <CheckBoxPreference
-            android:key="button_vibrate_after_connected"
-            android:title="@string/vibrate_after_connected_title"
-            android:persistent="false"
-            android:defaultValue="true"
-            android:summary="@string/vibrate_after_connected_summary"
-            android:order="1200" />
-
     </PreferenceCategory>
 
     <PreferenceCategory
@@ -96,6 +69,18 @@
             android:title="@string/sip_receive_calls"
             android:summary="@string/sip_receive_calls_summary"
             android:persistent="true"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="incall_screen_category_key"
+        android:title="@string/incall_screen_settings">
+
+        <SwitchPreference
+            android:key="button_show_ssn_key"
+            android:title="@string/show_ssn_label"
+            android:defaultValue="false"
+            android:summary="@string/show_ssn_summary" />
 
     </PreferenceCategory>
 
