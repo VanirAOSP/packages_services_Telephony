@@ -359,14 +359,6 @@ public class CallFeaturesSetting extends PreferenceActivity
             prefSet.removePreference(findPreference("ims_settings_key"));
         }
 
-        if (!PackageManagerUtils.isAppInstalled(this, "com.qualcomm.qti.phonefeature")) {
-            PreferenceScreen prefCB = (PreferenceScreen)
-                    prefSet.findPreference("button_callbarring_expand_key");
-            if (prefCB != null) {
-                prefSet.removePreference(prefCB);
-            }
-        }
-
         Preference wifiCallingSettings = findPreference(
                 getResources().getString(R.string.wifi_calling_settings_key));
 
