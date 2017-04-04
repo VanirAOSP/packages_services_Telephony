@@ -224,6 +224,7 @@
 
     <!-- Whether the cellular radio is allowed to be power down when the Bluetooth can provide the data/call capabilities -->
     <bool name="config_allowRadioPowerDownOnBluetooth">false</bool>
+
     <!-- To disable/enable CallForwardUnconditional Timer -->
     <bool name="config_enable_cfu_time">false</bool>
 
