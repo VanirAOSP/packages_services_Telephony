@@ -269,8 +269,9 @@ public class TelephonyConnectionService extends ConnectionService {
             mRequest = request;
         }
 
-        if ((isEmergencyNumber && !isRadioOn()) || isRadioPowerDownOnBluetooth()) {
+        if ((isEmergencyNumber && (!isRadioOn() || isAirplaneModeOn)) || isRadioPowerDownOnBluetooth()) {
             final Uri resultHandle = handle;
+            mUseEmergencyCallHelper = true;
             // By default, Connection based on the default Phone, since we need to return to Telecom
             // now.
             final Connection resultConnection = getTelephonyConnection(request, numberToDial,
