@@ -290,6 +290,8 @@ public class NetworkSetting extends PreferenceActivity
         bindService (new Intent(this, NetworkQueryService.class).setAction(
                 NetworkQueryService.ACTION_LOCAL_BINDER),
                 mNetworkQueryServiceConnection, Context.BIND_AUTO_CREATE);
+
+        displayEmptyNetworkList();
     }
 
     @Override
